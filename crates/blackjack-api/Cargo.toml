@@ -1,0 +1,29 @@
+[package]
+name = "blackjack-api"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "blackjack-api"
+path = "src/main.rs"
+
+[dependencies]
+blackjack-core = { path = "../blackjack-core" }
+blackjack-service = { path = "../blackjack-service" }
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+jsonwebtoken = "9"
+tower-http = { version = "0.6", features = ["cors"] }
+tower = "0.5"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+config = "0.14"
+dotenv = "0.15"
+
+# Future dependencies (commented for Phase 1)
+# metrics = "0.21"
+# metrics-exporter-prometheus = "0.13"
+# notify = "6"
+# validator = { version = "0.16", features = ["derive"] }

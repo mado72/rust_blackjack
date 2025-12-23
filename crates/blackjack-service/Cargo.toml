@@ -1,0 +1,12 @@
+[package]
+name = "blackjack-service"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+blackjack-core = { path = "../blackjack-core" }
+thiserror = "2"
+tracing = "0.1"
+
+# Future dependencies (commented for Phase 1)
+# sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite"] }
