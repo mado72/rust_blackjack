@@ -26,12 +26,20 @@ const CARDS: [(&str, u8); 13] = [
 /// 
 /// Manages the complete game flow:
 /// 1. Requests the number of players
-/// 2. Executes one round for each player
-/// 3. Determines and displays the winner
+/// 2. Validates that the number of players is between 1 and 10
+/// 3. Executes one round for each player
+/// 4. Determines and displays the winner
+/// 
+/// # Panics
+/// Panics if the number of players is less than 1 or greater than 10.
 fn main() {
     println!("Welcome to the Card Game!");
     
     let total_players = read_total_players();
+
+    assert!(total_players > 0, "The number of players must be greater than zero.");
+    assert!(total_players <= 10, "The maximum number of players is 10.");
+
     let mut players_points = vec![0u8; total_players as usize];
 
     for player_number in 1..=total_players {
@@ -47,13 +55,17 @@ fn main() {
     println!("Finished.");
 }
 
-/// Reads and validates the total number of players.
+/// Reads the total number of players from user input.
 /// 
 /// # Returns
 /// Returns the number of players as u8.
 /// 
 /// # Panics
 /// Panics if the input is not a valid number.
+/// 
+/// # Note
+/// After calling this function, the main function validates that the returned value
+/// is between 1 and 10 (inclusive).
 fn read_total_players() -> u8 {
     let mut input = String::new();
     print!("Enter the number of players: ");
@@ -335,5 +347,30 @@ mod tests {
 
         assert_eq!(winner_index, Some(3));
         assert_eq!(highest_points, 19);
+    }
+
+    #[test]
+    #[should_panic(expected = "The number of players must be greater than zero.")]
+    fn test_total_players_zero_panics() {
+        // Test that 0 players causes a panic
+        let total_players: u8 = 0;
+        assert!(total_players > 0, "The number of players must be greater than zero.");
+    }
+
+    #[test]
+    #[should_panic(expected = "The maximum number of players is 10.")]
+    fn test_total_players_exceeds_maximum_panics() {
+        // Test that more than 10 players causes a panic
+        let total_players: u8 = 11;
+        assert!(total_players <= 10, "The maximum number of players is 10.");
+    }
+
+    #[test]
+    fn test_total_players_valid_range() {
+        // Test that valid player counts (1-10) don't panic
+        for total_players in 1..=10 {
+            assert!(total_players > 0, "The number of players must be greater than zero.");
+            assert!(total_players <= 10, "The maximum number of players is 10.");
+        }
     }
 }
