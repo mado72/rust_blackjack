@@ -12,30 +12,30 @@ This document details the transformation of the CLI blackjack game into a produc
 
 ## Phase 1: Workspace Configuration and CI/CD
 
-**Status:** `pending`  
+**Status:** `completed`  
 **Dependencies:** None  
 **Estimated Effort:** 4 hours
 
 ### Tasks
 
-- [ ] Create workspace root `Cargo.toml` with members: `["crates/blackjack-core", "crates/blackjack-service", "crates/blackjack-api", "crates/blackjack-cli"]`
-- [ ] Create `crates/blackjack-core/Cargo.toml` with dependencies: rand 0.9.2, uuid v4, serde derive
-- [ ] Create `crates/blackjack-service/Cargo.toml` with dependencies: thiserror 2, tracing 0.1
-- [ ] Create `crates/blackjack-api/Cargo.toml` with dependencies: axum 0.7, tokio full, serde derive, serde_json, jsonwebtoken 9, tower-http cors 0.6, tower 0.5, tracing 0.1, tracing-subscriber 0.3 env-filter, config 0.14, dotenv 0.15
-- [ ] Add commented future dependencies: `# Future: sqlx, metrics, metrics-exporter-prometheus, notify, validator`
-- [ ] Move `src/main.rs` to `crates/blackjack-cli/src/main.rs` (preserve original CLI version)
-- [ ] Create `.github/workflows/ci.yml` with jobs:
-  - [ ] `test`: cargo test --workspace
-  - [ ] `lint`: cargo clippy -- -D warnings
-  - [ ] `format`: cargo fmt --check
-  - [ ] `build`: cargo build --release
-  - [ ] `docker-build`: multi-stage Dockerfile
+- [x] Create workspace root `Cargo.toml` with members: `["crates/blackjack-core", "crates/blackjack-service", "crates/blackjack-api", "crates/blackjack-cli"]`
+- [x] Create `crates/blackjack-core/Cargo.toml` with dependencies: rand 0.9.2, uuid v4, serde derive
+- [x] Create `crates/blackjack-service/Cargo.toml` with dependencies: thiserror 2, tracing 0.1
+- [x] Create `crates/blackjack-api/Cargo.toml` with dependencies: axum 0.7, tokio full, serde derive, serde_json, jsonwebtoken 9, tower-http cors 0.6, tower 0.5, tracing 0.1, tracing-subscriber 0.3 env-filter, config 0.14, dotenv 0.15
+- [x] Add commented future dependencies: `# Future: sqlx, metrics, metrics-exporter-prometheus, notify, validator`
+- [x] Move `src/main.rs` to `crates/blackjack-cli/src/main.rs` (preserve original CLI version)
+- [x] Create `.github/workflows/ci.yml` with jobs:
+  - [x] `test`: cargo test --workspace
+  - [x] `lint`: cargo clippy -- -D warnings
+  - [x] `format`: cargo fmt --check
+  - [x] `build`: cargo build --release
+  - [x] `docker-build`: multi-stage Dockerfile
 
 ### Acceptance Criteria
 
-- Workspace builds successfully with `cargo build --workspace`
-- CI pipeline runs all checks on push/PR
-- Original CLI version preserved and functional
+- ✅ Workspace builds successfully with `cargo build --workspace`
+- ✅ CI pipeline runs all checks on push/PR
+- ✅ Original CLI version preserved and functional
 
 ---
 
