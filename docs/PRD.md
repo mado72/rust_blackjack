@@ -41,50 +41,50 @@ This document details the transformation of the CLI blackjack game into a produc
 
 ## Phase 2: Core Crate (blackjack-core)
 
-**Status:** `pending`  
+**Status:** `completed`  
 **Dependencies:** Phase 1  
 **Estimated Effort:** 8 hours
 
 ### Tasks
 
-- [ ] Expand CARDS constant from 13 to 52 cards (4 copies of each type)
-- [ ] Add suits: ["Hearts", "Diamonds", "Clubs", "Spades"]
-- [ ] Create `Card` struct with `#[derive(Debug, Clone, Serialize, Deserialize)]`:
-  - [ ] Fields: `id: Uuid, name: String, value: u8, suit: String`
-- [ ] Create `Player` struct:
-  - [ ] Fields: `email: String, points: u8, cards_history: Vec<Card>, ace_values: HashMap<Uuid, bool>, busted: bool`
-  - [ ] `ace_values` maps card_id to is_eleven (true = 11 points, false = 1 point)
-- [ ] Create `PlayerSummary` struct:
-  - [ ] Fields: `points: u8, cards_count: usize, busted: bool`
-- [ ] Create `GameResult` struct:
-  - [ ] Fields: `winner: Option<String>, tied_players: Vec<String>, highest_score: u8, all_players: HashMap<String, PlayerSummary>`
-- [ ] Create `Game` struct:
-  - [ ] Fields: `id: Uuid, players: HashMap<String, Player>, available_cards: Vec<Card>, finished: bool`
-- [ ] Implement `Game::new(player_emails)` method:
-  - [ ] Validate 1-10 unique non-empty emails
-  - [ ] Initialize 52-card deck
-  - [ ] Add `#[tracing::instrument]` attribute
-- [ ] Implement `Game::draw_card(email) -> Result<Card, GameError>`:
-  - [ ] Remove random card from deck if `!finished`
-  - [ ] Update player's cards_history
-  - [ ] Add `#[tracing::instrument]` attribute
-- [ ] Implement `Game::set_ace_value(email, card_id, as_eleven)`:
-  - [ ] Recalculate player points if `!finished`
-  - [ ] Allow multiple changes to same Ace
-  - [ ] Add `#[tracing::instrument]` attribute
-- [ ] Implement `Game::finish_game()`:
-  - [ ] Set `finished = true`
-- [ ] Implement `Game::calculate_results() -> GameResult`:
-  - [ ] Based on `determine_winner` logic from main.rs lines 138-167
-  - [ ] Handle single winner, ties, all-bust scenarios
+- [x] Expand CARDS constant from 13 to 52 cards (4 copies of each type)
+- [x] Add suits: ["Hearts", "Diamonds", "Clubs", "Spades"]
+- [x] Create `Card` struct with `#[derive(Debug, Clone, Serialize, Deserialize)]`:
+  - [x] Fields: `id: Uuid, name: String, value: u8, suit: String`
+- [x] Create `Player` struct:
+  - [x] Fields: `email: String, points: u8, cards_history: Vec<Card>, ace_values: HashMap<Uuid, bool>, busted: bool`
+  - [x] `ace_values` maps card_id to is_eleven (true = 11 points, false = 1 point)
+- [x] Create `PlayerSummary` struct:
+  - [x] Fields: `points: u8, cards_count: usize, busted: bool`
+- [x] Create `GameResult` struct:
+  - [x] Fields: `winner: Option<String>, tied_players: Vec<String>, highest_score: u8, all_players: HashMap<String, PlayerSummary>`
+- [x] Create `Game` struct:
+  - [x] Fields: `id: Uuid, players: HashMap<String, Player>, available_cards: Vec<Card>, finished: bool`
+- [x] Implement `Game::new(player_emails)` method:
+  - [x] Validate 1-10 unique non-empty emails
+  - [x] Initialize 52-card deck
+  - [x] Add `#[tracing::instrument]` attribute
+- [x] Implement `Game::draw_card(email) -> Result<Card, GameError>`:
+  - [x] Remove random card from deck if `!finished`
+  - [x] Update player's cards_history
+  - [x] Add `#[tracing::instrument]` attribute
+- [x] Implement `Game::set_ace_value(email, card_id, as_eleven)`:
+  - [x] Recalculate player points if `!finished`
+  - [x] Allow multiple changes to same Ace
+  - [x] Add `#[tracing::instrument]` attribute
+- [x] Implement `Game::finish_game()`:
+  - [x] Set `finished = true`
+- [x] Implement `Game::calculate_results() -> GameResult`:
+  - [x] Based on `determine_winner` logic from main.rs lines 138-167
+  - [x] Handle single winner, ties, all-bust scenarios
 
 ### Acceptance Criteria
 
-- All structs serialize/deserialize correctly to JSON
-- Deck contains exactly 52 unique cards (4 of each type)
-- Ace value can be changed multiple times
-- Game finished prevents further operations
-- All methods have tracing instrumentation
+- ✅ All structs serialize/deserialize correctly to JSON
+- ✅ Deck contains exactly 52 unique cards (4 of each type)
+- ✅ Ace value can be changed multiple times
+- ✅ Game finished prevents further operations
+- ✅ All methods have tracing instrumentation
 
 ---
 
