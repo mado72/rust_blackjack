@@ -3,6 +3,10 @@ name = "blackjack-api"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "blackjack_api"
+path = "src/lib.rs"
+
 [[bin]]
 name = "blackjack-api"
 path = "src/main.rs"
@@ -21,6 +25,8 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 config = "0.14"
 dotenv = "0.15"
+chrono = "0.4"
+uuid = { version = "1", features = ["v4"] }
 
 # Future dependencies (commented for Phase 1)
 # metrics = "0.21"
