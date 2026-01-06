@@ -1,0 +1,16 @@
+[server]
+host = "127.0.0.1"
+port = 8080
+
+[cors]
+allowed_origins = ["http://localhost:3000"]
+
+[jwt]
+secret = "dev-secret-key-change-in-production"
+expiration_hours = 24
+
+[rate_limit]
+requests_per_minute = 10
+
+[api]
+version_deprecation_months = 6
