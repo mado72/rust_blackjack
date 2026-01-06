@@ -160,13 +160,13 @@ This document details the transformation of the CLI blackjack game into a produc
 
 ## Phase 4: API Crate - External Configuration and Authentication
 
-**Status:** `pending`  
+**Status:** `completed`  
 **Dependencies:** Phase 3  
 **Estimated Effort:** 8 hours
 
 ### Tasks
 
-- [ ] Create `crates/blackjack-api/config.toml`:
+- [x] Create `crates/blackjack-api/config.toml`:
   ```toml
   [server]
   host = "127.0.0.1"
@@ -185,51 +185,53 @@ This document details the transformation of the CLI blackjack game into a produc
   [api]
   version_deprecation_months = 6
   ```
-- [ ] Create `AppConfig` struct using `config` crate:
-  - [ ] Load from `config.toml`
-  - [ ] Override with env vars `BLACKJACK_*`
-- [ ] Create `.env.example` with variables:
-  - [ ] `BLACKJACK_JWT_SECRET`
-  - [ ] `BLACKJACK_SERVER_PORT`
-  - [ ] `RUST_LOG`
-- [ ] Initialize tracing in main:
-  - [ ] `tracing_subscriber::fmt().with_env_filter().init()`
-- [ ] Create `Claims` struct:
-  - [ ] Fields: `email: String, game_id: String, exp: usize`
-- [ ] Create `ApiError` struct:
-  - [ ] Fields: `message: String, code: String, status: u16, details: Option<HashMap<String, String>>`
-  - [ ] Implement `IntoResponse` trait
-- [ ] Create `RateLimiter` struct:
-  - [ ] Use `config.rate_limit.requests_per_minute`
-  - [ ] Track requests per `{game_id}:{email}` key
-  - [ ] Use `Arc<Mutex<HashMap<String, VecDeque<Instant>>>>`
-- [ ] Implement `POST /api/v1/auth/login`:
-  - [ ] Accept `{email: String, game_id: String}`
-  - [ ] Validate via `service.get_game_state()`
-  - [ ] Generate JWT with `config.jwt.expiration_hours` and `config.jwt.secret`
-  - [ ] Return `{token: String, expires_in: usize}`
-  - [ ] Log authentication attempt with game_id and email
-- [ ] Create `auth_middleware`:
-  - [ ] Extract Bearer token from Authorization header
-  - [ ] Decode JWT using `jsonwebtoken::decode`
-  - [ ] Inject `Claims` via Axum Extension
-  - [ ] Return `ApiError {status: 401, code: "UNAUTHORIZED"}` on failure
-  - [ ] Log authentication with `tracing::debug!`
-- [ ] Create `rate_limit_middleware`:
-  - [ ] Check request limit per player
-  - [ ] Return `ApiError {status: 429, code: "RATE_LIMIT_EXCEEDED"}` if exceeded
-  - [ ] Log excess with `tracing::warn!`
-- [ ] Create `version_deprecation_middleware`:
-  - [ ] Add headers `X-API-Deprecated`, `X-API-Sunset-Date`
-  - [ ] Calculate sunset date from `config.api.version_deprecation_months`
+- [x] Create `AppConfig` struct using `config` crate:
+  - [x] Load from `config.toml`
+  - [x] Override with env vars `BLACKJACK_*`
+- [x] Create `.env.example` with variables:
+  - [x] `BLACKJACK_JWT_SECRET`
+  - [x] `BLACKJACK_SERVER_PORT`
+  - [x] `RUST_LOG`
+- [x] Initialize tracing in main:
+  - [x] `tracing_subscriber::fmt().with_env_filter().init()`
+- [x] Create `Claims` struct:
+  - [x] Fields: `email: String, game_id: String, exp: usize`
+- [x] Create `ApiError` struct:
+  - [x] Fields: `message: String, code: String, status: u16, details: Option<HashMap<String, String>>`
+  - [x] Implement `IntoResponse` trait
+- [x] Create `RateLimiter` struct:
+  - [x] Use `config.rate_limit.requests_per_minute`
+  - [x] Track requests per `{game_id}:{email}` key
+  - [x] Use `Arc<Mutex<HashMap<String, VecDeque<Instant>>>>`
+- [x] Implement `POST /api/v1/auth/login`:
+  - [x] Accept `{email: String, game_id: String}`
+  - [x] Validate via `service.get_game_state()`
+  - [x] Generate JWT with `config.jwt.expiration_hours` and `config.jwt.secret`
+  - [x] Return `{token: String, expires_in: usize}`
+  - [x] Log authentication attempt with game_id and email
+- [x] Create `auth_middleware`:
+  - [x] Extract Bearer token from Authorization header
+  - [x] Decode JWT using `jsonwebtoken::decode`
+  - [x] Inject `Claims` via Axum Extension
+  - [x] Return `ApiError {status: 401, code: "UNAUTHORIZED"}` on failure
+  - [x] Log authentication with `tracing::debug!`
+- [x] Create `rate_limit_middleware`:
+  - [x] Check request limit per player
+  - [x] Return `ApiError {status: 429, code: "RATE_LIMIT_EXCEEDED"}` if exceeded
+  - [x] Log excess with `tracing::warn!`
+- [x] Create `version_deprecation_middleware`:
+  - [x] Add headers `X-API-Deprecated`, `X-API-Sunset-Date`
+  - [x] Calculate sunset date from `config.api.version_deprecation_months`
 
 ### Acceptance Criteria
 
-- Configuration loads from file and env vars (env vars take precedence)
-- JWT authentication works with configurable secret and expiration
-- Rate limiting enforces configured limits per player
-- All errors return standardized JSON format
-- Middleware properly chains and injects context
+- ✅ Configuration loads from file and env vars (env vars take precedence)
+- ✅ JWT authentication works with configurable secret and expiration
+- ✅ Rate limiting enforces configured limits per player
+- ✅ All errors return standardized JSON format
+- ✅ Middleware properly chains and injects context
+- ✅ All modules fully documented with examples
+- ✅ 13 integration tests passing (config, state, errors, rate limiter, service conversion)
 
 ---
 
