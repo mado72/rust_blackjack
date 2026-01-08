@@ -27,15 +27,19 @@
 //! ```
 
 use blackjack_api::config::AppConfig;
-use blackjack_api::handlers::login;
-use blackjack_api::middleware::version_deprecation_middleware;
+use blackjack_api::handlers::{
+    create_game, draw_card, finish_game, get_game_results, get_game_state, health_check, login,
+    ready_check, set_ace_value,
+};
+use blackjack_api::middleware::{auth_middleware, rate_limit_middleware, version_deprecation_middleware};
 use blackjack_api::rate_limiter::RateLimiter;
 use blackjack_api::AppState;
-use axum::routing::post;
+use axum::routing::{get, post, put};
 use axum::Router;
 use blackjack_service::{GameService, ServiceConfig};
 use std::sync::Arc;
-use tower_http::cors::CorsLayer;
+use tower::ServiceBuilder;
+use tower_http::cors::{Any, CorsLayer};
 
 #[tokio::main]
 async fn main() {
@@ -83,20 +87,60 @@ async fn main() {
     };
 
     // Configure CORS (Cross-Origin Resource Sharing)
-    // Currently permissive for development; will be properly configured in Phase 5
-    let cors = CorsLayer::permissive();
+    // Uses allowed origins from configuration
+    let cors = CorsLayer::new()
+        .allow_origin(
+            app_config
+                .cors
+                .allowed_origins
+                .iter()
+                .map(|origin| origin.parse().expect("Invalid CORS origin"))
+                .collect::<Vec<_>>(),
+        )
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    tracing::info!(
+        allowed_origins = ?app_config.cors.allowed_origins,
+        "CORS configured"
+    );
 
     // Build the application router with all routes and middleware
     let app = Router::new()
-        // Public routes (no authentication required)
+        // Health check endpoints (public, no authentication)
+        .route("/health", get(health_check))
+        .route("/health/ready", get(ready_check))
+        // Public authentication endpoint
         .route("/api/v1/auth/login", post(login))
-        // Apply version deprecation middleware to add X-API-Deprecated headers
-        .layer(axum::middleware::from_fn_with_state(
-            state.clone(),
-            version_deprecation_middleware,
-        ))
-        // Apply CORS middleware
-        .layer(cors)
+        // Public game creation endpoint
+        .route("/api/v1/games", post(create_game))
+        // Protected game endpoints (require JWT authentication)
+        .route("/api/v1/games/:game_id", get(get_game_state))
+        .route("/api/v1/games/:game_id/draw", post(draw_card))
+        .route("/api/v1/games/:game_id/ace", put(set_ace_value))
+        .route("/api/v1/games/:game_id/finish", post(finish_game))
+        .route("/api/v1/games/:game_id/results", get(get_game_results))
+        // Apply middleware layers in order (executed bottom-to-top)
+        .layer(
+            ServiceBuilder::new()
+                // Rate limiting (applied first, checks all requests)
+                .layer(axum::middleware::from_fn_with_state(
+                    state.clone(),
+                    rate_limit_middleware,
+                ))
+                // Authentication (applied second, injects Claims for protected routes)
+                .layer(axum::middleware::from_fn_with_state(
+                    state.clone(),
+                    auth_middleware,
+                ))
+                // API deprecation headers (applied last, adds headers to responses)
+                .layer(axum::middleware::from_fn_with_state(
+                    state.clone(),
+                    version_deprecation_middleware,
+                ))
+                // CORS support
+                .layer(cors),
+        )
         // Attach shared state to all handlers
         .with_state(state);
 
