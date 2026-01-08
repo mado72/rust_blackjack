@@ -103,6 +103,7 @@ pub mod error;
 pub mod handlers;
 pub mod middleware;
 pub mod rate_limiter;
+pub mod websocket;
 
 use config::AppConfig;
 use rate_limiter::RateLimiter;
