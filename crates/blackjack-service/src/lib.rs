@@ -236,4 +236,25 @@ impl GameService {
 
         Ok(results)
     }
+
+    /// Retrieves the results of a finished game
+    ///
+    /// Returns the game results including winner, tied players, and all player summaries.
+    /// The game must be finished before calling this method.
+    ///
+    /// # Errors
+    ///
+    /// Returns `GameError::GameNotFound` if the game doesn't exist.
+    #[tracing::instrument(skip(self), fields(game_id))]
+    pub fn get_game_results(&self, game_id: Uuid) -> Result<GameResult, GameError> {
+        let games = self.games.lock().unwrap();
+        let game = games.get(&game_id).ok_or(GameError::GameNotFound)?;
+
+        Ok(game.calculate_results())
+    }
+
+    /// Returns a reference to the service configuration
+    pub fn config(&self) -> &ServiceConfig {
+        &self.config
+    }
 }
