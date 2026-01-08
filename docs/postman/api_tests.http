@@ -1,0 +1,208 @@
+### Blackjack API - REST Client Examples
+### Use esta file para testar rapidamente com a extensão REST Client do VS Code
+
+@base_url = http://localhost:8080
+@jwt_token = 
+@game_id = 
+@player_email = player1@example.com
+@card_id = 
+
+### ============================================
+### HEALTH CHECKS (Público - sem auth)
+### ============================================
+
+### Health Check - Verifica status do servidor
+GET {{base_url}}/health
+Content-Type: application/json
+
+### Ready Check - Verifica prontidão dos componentes
+GET {{base_url}}/health/ready
+Content-Type: application/json
+
+### ============================================
+### GAME MANAGEMENT
+### ============================================
+
+### Create Game - Criar novo jogo com jogadores
+# @name createGame
+POST {{base_url}}/api/v1/games
+Content-Type: application/json
+
+{
+  "emails": [
+    "player1@example.com",
+    "player2@example.com",
+    "player3@example.com"
+  ]
+}
+
+### Salvar game_id da resposta acima
+# @game_id = {{createGame.response.body.game_id}}
+
+### ============================================
+### AUTHENTICATION
+### ============================================
+
+### Login - Autenticar jogador e obter JWT
+# @name login
+POST {{base_url}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{player_email}}",
+  "game_id": "{{game_id}}"
+}
+
+### Salvar token da resposta acima
+# @jwt_token = {{login.response.body.token}}
+
+### ============================================
+### PROTECTED ENDPOINTS (Requer JWT)
+### ============================================
+
+### Get Game State - Ver estado atual do jogo
+GET {{base_url}}/api/v1/games/{{game_id}}
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+### ============================================
+### PLAYER ACTIONS
+### ============================================
+
+### Draw Card - Comprar uma carta
+# @name drawCard
+POST {{base_url}}/api/v1/games/{{game_id}}/draw
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+### Salvar card_id se for um Ás
+# @card_id = {{drawCard.response.body.card.id}}
+
+### Draw Card - Comprar outra carta
+POST {{base_url}}/api/v1/games/{{game_id}}/draw
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+### Set Ace Value - Mudar valor do Ás (1 ou 11)
+PUT {{base_url}}/api/v1/games/{{game_id}}/ace
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "card_id": "{{card_id}}",
+  "as_eleven": false
+}
+
+### Set Ace Value - Mudar para 11
+PUT {{base_url}}/api/v1/games/{{game_id}}/ace
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+{
+  "card_id": "{{card_id}}",
+  "as_eleven": true
+}
+
+### ============================================
+### GAME COMPLETION
+### ============================================
+
+### Finish Game - Finalizar jogo e calcular vencedor
+POST {{base_url}}/api/v1/games/{{game_id}}/finish
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+### Get Game Results - Ver resultados do jogo finalizado
+GET {{base_url}}/api/v1/games/{{game_id}}/results
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+### ============================================
+### EXEMPLOS COMPLETOS
+### ============================================
+
+### EXEMPLO 1: Jogo com 2 jogadores
+POST {{base_url}}/api/v1/games
+Content-Type: application/json
+
+{
+  "emails": [
+    "alice@example.com",
+    "bob@example.com"
+  ]
+}
+
+### EXEMPLO 2: Login com credenciais específicas
+POST {{base_url}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "alice@example.com",
+  "game_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+
+### EXEMPLO 3: Mudar Ás para valor 1 (evitar bust)
+PUT {{base_url}}/api/v1/games/550e8400-e29b-41d4-a716-446655440000/ace
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+
+{
+  "card_id": "ace-card-uuid-here",
+  "as_eleven": false
+}
+
+### ============================================
+### TESTES DE ERRO
+### ============================================
+
+### ERRO: Criar jogo sem jogadores
+POST {{base_url}}/api/v1/games
+Content-Type: application/json
+
+{
+  "emails": []
+}
+
+### ERRO: Criar jogo com muitos jogadores (> 10)
+POST {{base_url}}/api/v1/games
+Content-Type: application/json
+
+{
+  "emails": [
+    "p1@ex.com", "p2@ex.com", "p3@ex.com", "p4@ex.com",
+    "p5@ex.com", "p6@ex.com", "p7@ex.com", "p8@ex.com",
+    "p9@ex.com", "p10@ex.com", "p11@ex.com"
+  ]
+}
+
+### ERRO: Login com game_id inválido
+POST {{base_url}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "player@example.com",
+  "game_id": "not-a-valid-uuid"
+}
+
+### ERRO: Login com jogador que não está no jogo
+POST {{base_url}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "stranger@example.com",
+  "game_id": "{{game_id}}"
+}
+
+### ERRO: Tentar acessar endpoint protegido sem token
+GET {{base_url}}/api/v1/games/{{game_id}}
+Content-Type: application/json
+
+### ERRO: Ver resultados de jogo não finalizado
+GET {{base_url}}/api/v1/games/{{game_id}}/results
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json
+
+### ERRO: Comprar carta de jogo já finalizado
+POST {{base_url}}/api/v1/games/{{game_id}}/draw
+Authorization: Bearer {{jwt_token}}
+Content-Type: application/json

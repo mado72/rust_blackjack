@@ -75,7 +75,17 @@ rust_blackjack/
 │   └── blackjack-cli/           # Original CLI version (preserved)
 │       └── src/main.rs
 ├── docs/
-│   └── PRD.md                   # Product Requirements Document
+│   ├── PRD.md                   # Product Requirements Document
+│   └── postman/                 # API testing resources
+│       ├── README.md            # Testing guide overview
+│       ├── Blackjack_API.postman_collection.json
+│       ├── Blackjack_API_Local.postman_environment.json
+│       ├── POSTMAN_GUIDE.md     # Complete Postman tutorial
+│       ├── QUICK_REFERENCE.md   # Quick reference guide
+│       ├── CURL_EXAMPLES.md     # cURL command examples
+│       ├── API_TESTING_INDEX.md # Complete testing index
+│       ├── api_tests.http       # VS Code REST Client file
+│       └── test_api.ps1         # PowerShell test script
 └── README.md                    # This file
 ```
 
@@ -114,6 +124,98 @@ cargo run -p blackjack-cli
 ```
 
 The API server will start on `http://127.0.0.1:8080` by default.
+
+## Testing the API
+
+Multiple options are available for testing the API endpoints:
+
+### Option 1: Postman Collection (Recommended)
+
+Import the pre-configured Postman collection with all endpoints:
+
+1. Open Postman
+2. Click **Import** → Select files
+3. Import both:
+   - `docs/postman/Blackjack_API.postman_collection.json` - Complete collection
+   - `docs/postman/Blackjack_API_Local.postman_environment.json` - Environment variables
+4. Select **Blackjack API - Local** environment
+5. Start with **Create Game** → **Login** → **Draw Card**
+
+**Features:**
+- ✅ Automatic token management (JWT saved automatically)
+- ✅ Automatic game_id management
+- ✅ Pre-configured requests with examples
+- ✅ Test scripts with console logging
+- ✅ Full documentation in each request
+
+📖 **See [docs/postman/POSTMAN_GUIDE.md](docs/postman/POSTMAN_GUIDE.md) for detailed instructions**
+
+### Option 2: VS Code REST Client
+
+Use the `.http` file for quick testing in VS Code:
+
+1. Install the **REST Client** extension
+2. Open `docs/postman/api_tests.http`
+3. Click "Send Request" above each request
+4. Modify variables at the top of the file
+
+### Option 3: PowerShell Script (Automated Testing)
+
+Run the complete test suite automatically:
+
+```powershell
+# Make sure the server is running first
+.\docs\postman\test_api.ps1
+```
+
+This script will:
+- ✅ Test all endpoints in order
+- ✅ Save variables automatically
+- ✅ Show detailed colored output
+- ✅ Test error scenarios
+- ✅ Provide a complete summary
+
+### Option 4: cURL Commands
+
+For command-line testing, see `docs/postman/CURL_EXAMPLES.md` with ready-to-use examples:
+
+```bash
+# Health check
+curl http://localhost:8080/health | jq '.'
+
+# Create game (save the game_id)
+curl -X POST http://localhost:8080/api/v1/games \
+  -H "Content-Type: application/json" \
+  -d '{"emails":["player1@example.com"]}'
+
+# More examples in docs/postman/CURL_EXAMPLES.md...
+```
+
+### API Testing Files
+
+All testing resources are located in the `docs/postman/` directory:
+
+| File | Purpose | Best For |
+|------|---------|----------|
+| `docs/postman/Blackjack_API.postman_collection.json` | Postman collection | Interactive testing, documentation |
+| `docs/postman/Blackjack_API_Local.postman_environment.json` | Postman environment | Variable management |
+| `docs/postman/POSTMAN_GUIDE.md` | Complete Postman guide | Learning the API flow |
+| `docs/postman/api_tests.http` | REST Client file | Quick VS Code testing |
+| `docs/postman/test_api.ps1` | PowerShell test script | Automated full suite |
+| `docs/postman/CURL_EXAMPLES.md` | cURL examples | Command-line reference |
+| `docs/postman/QUICK_REFERENCE.md` | Quick reference guide | Fast lookup |
+| `docs/postman/API_TESTING_INDEX.md` | Complete testing index | Navigation hub |
+
+### Quick Test Flow
+
+1. **Start the server**: `cargo run -p blackjack-api`
+2. **Health check**: Verify server is running
+3. **Create game**: Get a `game_id`
+4. **Login**: Get a JWT token
+5. **Play**: Draw cards, change Ace values
+6. **Finish**: End game and see results
+
+All testing tools follow this same flow with automatic variable management!
 
 ## Configuration
 
