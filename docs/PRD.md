@@ -327,6 +327,15 @@ This document details the transformation of the CLI blackjack game into a produc
 - [ ] Configure server:
   - [ ] Bind to `config.server.host:config.server.port`
   - [ ] Default port 8080
+- [ ] Create unit tests for REST endpoints:
+  - [ ] Test `POST /api/v1/games` input validation (1-10 players)
+  - [ ] Test `GET /api/v1/games/:game_id` authentication requirement
+  - [ ] Test `POST /api/v1/games/:game_id/draw` protected endpoint
+  - [ ] Test `PUT /api/v1/games/:game_id/ace` input validation
+  - [ ] Test `POST /api/v1/games/:game_id/finish` game state transition
+  - [ ] Test `GET /api/v1/games/:game_id/results` error when game not finished
+  - [ ] Test `GET /health` and `GET /health/ready` responses
+  - [ ] Test error response format consistency
 - [ ] Document all REST endpoints and handlers:
   - [ ] Add module documentation for handlers module
   - [ ] Document each endpoint handler with request/response examples
@@ -366,6 +375,15 @@ This document details the transformation of the CLI blackjack game into a produc
   - [ ] Test JSON serialization/deserialization of all structs
   - [ ] Migrate tests from main.rs lines 194-347
   - [ ] Adapt `determine_winner` tests for `calculate_results()`
+- [ ] Create unit tests for core functionality:
+  - [ ] Test `Card` struct creation and serialization
+  - [ ] Test `Player` points calculation with different Ace values
+  - [ ] Test `Player` busted state detection
+  - [ ] Test `Game::new()` with valid/invalid player counts
+  - [ ] Test `Game::draw_card()` deck state changes
+  - [ ] Test `Game::set_ace_value()` points recalculation
+  - [ ] Test `Game::calculate_results()` winner determination
+  - [ ] Test `GameResult` with single winner, ties, all-bust scenarios
 
 #### Service Tests
 - [ ] Create `crates/blackjack-service/tests/service_tests.rs`:
@@ -374,6 +392,15 @@ This document details the transformation of the CLI blackjack game into a produc
   - [ ] Test config validation (min_players, max_players)
   - [ ] Test logging with mock tracing subscriber
   - [ ] Verify correct spans and fields in logs
+- [ ] Create unit tests for service methods:
+  - [ ] Test `GameService::create_game()` with valid/invalid player counts
+  - [ ] Test `GameService::draw_card()` response structure
+  - [ ] Test `GameService::set_ace_value()` state updates
+  - [ ] Test `GameService::get_game_state()` data consistency
+  - [ ] Test `GameService::finish_game()` state transition
+  - [ ] Test `GameError` variants and error messages
+  - [ ] Test service operations on non-existent games
+  - [ ] Test service operations with invalid player emails
 
 #### API Tests
 - [ ] Create `crates/blackjack-api/tests/api_tests.rs`:
@@ -385,6 +412,15 @@ This document details the transformation of the CLI blackjack game into a produc
   - [ ] Test `ApiError` format with details field
   - [ ] Test JWT authentication flow
   - [ ] Test CORS headers
+- [ ] Create unit tests for API components:
+  - [ ] Test `AppConfig` loading from file and env vars
+  - [ ] Test `Claims` struct serialization/deserialization
+  - [ ] Test `RateLimiter` request tracking and limit enforcement
+  - [ ] Test `auth_middleware` token validation
+  - [ ] Test `rate_limit_middleware` per-player tracking
+  - [ ] Test `version_deprecation_middleware` header injection
+  - [ ] Test `ApiError` to HTTP response conversion
+  - [ ] Test login endpoint token generation
 
 #### Docker
 - [ ] Create `Dockerfile` multi-stage:
