@@ -11,16 +11,20 @@ use jsonwebtoken::{decode, DecodingKey, Validation};
 /// Validates JWT tokens from the Authorization header and injects the decoded
 /// claims into the request extensions for use by downstream handlers.
 ///
+/// This middleware allows public routes (without Authorization header) to pass through,
+/// but validates and injects claims when the header is present.
+///
 /// # Authentication Flow
 ///
-/// 1. Extracts the `Authorization` header from the request
-/// 2. Verifies it starts with "Bearer " prefix
-/// 3. Decodes and validates the JWT using the configured secret
-/// 4. Checks token expiration automatically via `exp` claim
-/// 5. Injects validated `Claims` into request extensions
-/// 6. Passes request to next middleware/handler
+/// 1. Checks if the `Authorization` header is present
+/// 2. If absent, allows the request to proceed (public route)
+/// 3. If present, verifies it starts with "Bearer " prefix
+/// 4. Decodes and validates the JWT using the configured secret
+/// 5. Checks token expiration automatically via `exp` claim
+/// 6. Injects validated `Claims` into request extensions
+/// 7. Passes request to next middleware/handler
 ///
-/// # Headers Required
+/// # Headers Required (for protected routes)
 ///
 /// ```text
 /// Authorization: Bearer <jwt_token>
@@ -29,11 +33,27 @@ use jsonwebtoken::{decode, DecodingKey, Validation};
 /// # Errors
 ///
 /// Returns `ApiError::unauthorized()` (401) if:
-/// - Authorization header is missing
-/// - Header doesn't start with "Bearer "
+/// - Header is present but doesn't start with "Bearer "
 /// - Token is malformed or invalid
 /// - Token signature verification fails
 /// - Token has expired
+///
+/// # Protected Routes
+///
+/// Handlers can check for authentication by attempting to extract `Claims`:
+///
+/// ```ignore
+/// use axum::Extension;
+/// use blackjack_api::auth::Claims;
+///
+/// async fn protected_handler(
+///     Extension(claims): Extension<Claims>
+/// ) -> &'static str {
+///     // This will fail with 500 if Claims are missing
+///     // Always use this pattern on routes that require auth
+///     "OK"
+/// }
+/// ```
 ///
 /// # Usage in Routes
 ///
@@ -57,11 +77,14 @@ pub async fn auth_middleware(
     next: Next,
 ) -> Result<Response, ApiError> {
     let headers = request.headers();
-    let auth_header = headers
-        .get("Authorization")
-        .and_then(|h| h.to_str().ok())
-        .ok_or_else(ApiError::unauthorized)?;
+    
+    // If no Authorization header, allow the request (public route)
+    let auth_header = match headers.get("Authorization").and_then(|h| h.to_str().ok()) {
+        Some(header) => header,
+        None => return Ok(next.run(request).await),
+    };
 
+    // If Authorization header exists, it must be valid
     if !auth_header.starts_with("Bearer ") {
         return Err(ApiError::unauthorized());
     }
@@ -92,7 +115,7 @@ pub async fn auth_middleware(
 /// Rate limiting middleware
 ///
 /// Enforces request rate limits per player using a sliding window algorithm.
-/// Must be used after `auth_middleware` as it requires the `Claims` extension.
+/// Only applies rate limiting to authenticated requests (those with Claims).
 ///
 /// # Rate Limit Key
 ///
@@ -102,6 +125,7 @@ pub async fn auth_middleware(
 /// - Each player has their own rate limit bucket
 /// - Players in different games don't interfere with each other
 /// - One player can't exhaust limits for others
+/// - Public routes (without Claims) bypass rate limiting
 ///
 /// # Configuration
 ///
@@ -112,9 +136,6 @@ pub async fn auth_middleware(
 ///
 /// Returns `ApiError::rate_limit_exceeded()` (429) if:
 /// - Player has made too many requests in the last 60 seconds
-///
-/// Returns `ApiError::unauthorized()` (401) if:
-/// - Claims extension is not present (auth_middleware not applied)
 ///
 /// # Usage in Routes
 ///
@@ -137,13 +158,11 @@ pub async fn rate_limit_middleware(
     request: Request,
     next: Next,
 ) -> Result<Response, ApiError> {
-    let claims = request
-        .extensions()
-        .get::<Claims>()
-        .ok_or_else(ApiError::unauthorized)?;
-
-    let key = format!("{}:{}", claims.game_id, claims.email);
-    state.rate_limiter.check_rate_limit(&key)?;
+    // Only apply rate limiting to authenticated requests
+    if let Some(claims) = request.extensions().get::<Claims>() {
+        let key = format!("{}:{}", claims.game_id, claims.email);
+        state.rate_limiter.check_rate_limit(&key)?;
+    }
 
     Ok(next.run(request).await)
 }
