@@ -1,0 +1,285 @@
+{
+  "info": {
+    "name": "Blackjack API",
+    "description": "Coleção completa de endpoints para testar a API Blackjack Multi-Player",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "game_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "player_email",
+      "value": "player1@example.com",
+      "type": "string"
+    },
+    {
+      "key": "card_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Checks",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Verifica o status básico de saúde do servidor.\n\n**Não requer autenticação**"
+          },
+          "response": []
+        },
+        {
+          "name": "Ready Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health/ready",
+              "host": ["{{base_url}}"],
+              "path": ["health", "ready"]
+            },
+            "description": "Verifica a prontidão detalhada de todos os componentes do sistema.\n\n**Não requer autenticação**"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints públicos para verificação de saúde do servidor"
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Extrai e salva o token JWT automaticamente",
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('jwt_token', response.token);",
+                  "    console.log('Token JWT salvo:', response.token);",
+                  "    console.log('Expira em:', response.expires_in, 'segundos');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{player_email}}\",\n  \"game_id\": \"{{game_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Autentica um jogador para uma sessão de jogo específica.\n\n**Body:**\n```json\n{\n  \"email\": \"player@example.com\",\n  \"game_id\": \"uuid-do-jogo\"\n}\n```\n\n**Response:**\n- Token JWT com expiração de 24 horas\n- O token é automaticamente salvo na variável `jwt_token`\n\n**Não requer autenticação prévia**"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoint de autenticação para obter token JWT"
+    },
+    {
+      "name": "Game Management",
+      "item": [
+        {
+          "name": "Create Game",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Salva o game_id automaticamente",
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('game_id', response.game_id);",
+                  "    console.log('Game ID salvo:', response.game_id);",
+                  "    console.log('Jogadores:', response.player_count);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emails\": [\n    \"player1@example.com\",\n    \"player2@example.com\",\n    \"player3@example.com\"\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/games",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "games"]
+            },
+            "description": "Cria um novo jogo com 1-10 jogadores.\n\n**Body:**\n```json\n{\n  \"emails\": [\n    \"player1@example.com\",\n    \"player2@example.com\"\n  ]\n}\n```\n\n**Response:**\n- UUID do jogo criado (salvo automaticamente em `game_id`)\n- Número de jogadores\n\n**Não requer autenticação**"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Game State",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/games/{{game_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "games", "{{game_id}}"]
+            },
+            "description": "Retorna o estado completo do jogo.\n\n**Response:**\n- Todos os jogadores e suas cartas\n- Pontos de cada jogador\n- Cartas restantes no baralho\n- Status de finalizado/ativo\n\n**Requer autenticação JWT**"
+          },
+          "response": []
+        },
+        {
+          "name": "Finish Game",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/games/{{game_id}}/finish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "games", "{{game_id}}", "finish"]
+            },
+            "description": "Finaliza o jogo e calcula o vencedor.\n\n**Response:**\n- Vencedor (email)\n- Jogadores empatados (se houver)\n- Pontuação mais alta\n- Informações de todos os jogadores\n\n**Requer autenticação JWT**"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Game Results",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/games/{{game_id}}/results",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "games", "{{game_id}}", "results"]
+            },
+            "description": "Retorna os resultados de um jogo finalizado.\n\n**Só funciona se o jogo já foi finalizado**\n\n**Response:**\n- Vencedor\n- Jogadores empatados\n- Pontuação final de todos\n\n**Requer autenticação JWT**"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints para gerenciar jogos"
+    },
+    {
+      "name": "Player Actions",
+      "item": [
+        {
+          "name": "Draw Card",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Salva o card_id da última carta comprada (útil para testar Set Ace Value)",
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.card && response.card.name === 'Ace') {",
+                  "        pm.collectionVariables.set('card_id', response.card.id);",
+                  "        console.log('Ás comprado! Card ID salvo:', response.card.id);",
+                  "    }",
+                  "    console.log('Carta:', response.card.name, 'de', response.card.suit);",
+                  "    console.log('Pontos atuais:', response.current_points);",
+                  "    console.log('Estourou?', response.busted);",
+                  "    console.log('Cartas restantes:', response.cards_remaining);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/games/{{game_id}}/draw",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "games", "{{game_id}}", "draw"]
+            },
+            "description": "Compra uma carta do baralho para o jogador autenticado.\n\n**Response:**\n- Carta comprada (nome, valor, naipe)\n- Pontos atuais\n- Se estourou (busted)\n- Cartas restantes no baralho\n- Histórico completo de cartas\n\n**Requer autenticação JWT**\n\n**Nota:** O script de teste salva automaticamente o ID de Ases para facilitar testes de mudança de valor."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Ace Value",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"card_id\": \"{{card_id}}\",\n  \"as_eleven\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/games/{{game_id}}/ace",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "games", "{{game_id}}", "ace"]
+            },
+            "description": "Altera o valor de um Ás entre 1 e 11 pontos.\n\n**Body:**\n```json\n{\n  \"card_id\": \"uuid-da-carta\",\n  \"as_eleven\": true\n}\n```\n\n**Parâmetros:**\n- `card_id`: UUID do Ás a ser alterado\n- `as_eleven`: `true` para 11 pontos, `false` para 1 ponto\n\n**Response:**\n- Pontos atualizados\n- Status de bust\n\n**Requer autenticação JWT**\n\n**Nota:** Use a variável `{{card_id}}` que é preenchida automaticamente quando você compra um Ás."
+          },
+          "response": []
+        }
+      ],
+      "description": "Ações que os jogadores podem realizar durante o jogo"
+    }
+  ]
+}

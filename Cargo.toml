@@ -1,7 +1,8 @@
-[package]
-name = "rust_blackjack"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-rand = "0.9.2"
+[workspace]
+members = [
+    "crates/blackjack-core",
+    "crates/blackjack-service",
+    "crates/blackjack-api",
+    "crates/blackjack-cli"
+]
+resolver = "2"
