@@ -39,6 +39,16 @@
       "key": "card_id",
       "value": "",
       "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "invitation_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -80,6 +90,50 @@
       "name": "Authentication",
       "item": [
         {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Salva o user_id e email para uso posterior",
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('user_id', response.user_id);",
+                  "    pm.collectionVariables.set('player_email', response.email);",
+                  "    console.log('User ID salvo:', response.user_id);",
+                  "    console.log('Email salvo:', response.email);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{player_email}}\",\n  \"password\": \"SecurePassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Registra um novo usuário no sistema.\n\n**Body:**\n```json\n{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePassword123!\"\n}\n```\n\n**Response:**\n- UUID do usuário criado\n- Email confirmado\n- Mensagem de sucesso\n\n**Não requer autenticação**"
+          },
+          "response": []
+        },
+        {
           "name": "Login",
           "event": [
             {
@@ -111,19 +165,19 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{player_email}}\",\n  \"game_id\": \"{{game_id}}\"\n}"
+              "raw": "{\n  \"email\": \"{{player_email}}\",\n  \"password\": \"SecurePassword123!\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/v1/auth/login",
               "host": ["{{base_url}}"],
               "path": ["api", "v1", "auth", "login"]
             },
-            "description": "Autentica um jogador para uma sessão de jogo específica.\n\n**Body:**\n```json\n{\n  \"email\": \"player@example.com\",\n  \"game_id\": \"uuid-do-jogo\"\n}\n```\n\n**Response:**\n- Token JWT com expiração de 24 horas\n- O token é automaticamente salvo na variável `jwt_token`\n\n**Não requer autenticação prévia**"
+            "description": "Autentica um usuário e retorna um token JWT.\n\n**Body:**\n```json\n{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePassword123!\"\n}\n```\n\n**Response:**\n- Token JWT com expiração de 24 horas\n- O token é automaticamente salvo na variável `jwt_token`\n\n**Não requer autenticação prévia**"
           },
           "response": []
         }
       ],
-      "description": "Endpoint de autenticação para obter token JWT"
+      "description": "Endpoints de autenticação e registro de usuários"
     },
     {
       "name": "Game Management",
@@ -277,9 +331,112 @@
             "description": "Altera o valor de um Ás entre 1 e 11 pontos.\n\n**Body:**\n```json\n{\n  \"card_id\": \"uuid-da-carta\",\n  \"as_eleven\": true\n}\n```\n\n**Parâmetros:**\n- `card_id`: UUID do Ás a ser alterado\n- `as_eleven`: `true` para 11 pontos, `false` para 1 ponto\n\n**Response:**\n- Pontos atualizados\n- Status de bust\n\n**Requer autenticação JWT**\n\n**Nota:** Use a variável `{{card_id}}` que é preenchida automaticamente quando você compra um Ás."
           },
           "response": []
+        },
+        {
+          "name": "Stand",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/games/{{game_id}}/stand",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "games", "{{game_id}}", "stand"]
+            },
+            "description": "Jogador fica de pé (para de comprar cartas).\n\n**Response:**\n- Pontos atuais do jogador\n- Se o jogador estourou\n- Mensagem de sucesso\n- Se o jogo foi finalizado automaticamente (quando todos os jogadores terminaram)\n\n**Requer autenticação JWT**\n\n**Nota:** Se todos os jogadores ficarem de pé ou estourarem, o jogo é finalizado automaticamente."
+          },
+          "response": []
         }
       ],
       "description": "Ações que os jogadores podem realizar durante o jogo"
+    },
+    {
+      "name": "Invitations",
+      "item": [
+        {
+          "name": "Create Invitation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Salva o invitation_id automaticamente",
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('invitation_id', response.invitation_id);",
+                  "    console.log('Invitation ID salvo:', response.invitation_id);",
+                  "    console.log('Convidado:', response.invitee_email);",
+                  "    console.log('Expira em:', response.expires_at);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invitee_email\": \"newplayer@example.com\",\n  \"timeout_seconds\": 600\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/games/{{game_id}}/invitations",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "games", "{{game_id}}", "invitations"]
+            },
+            "description": "Cria um convite para um jogador participar do jogo.\n\n**Body:**\n```json\n{\n  \"invitee_email\": \"newplayer@example.com\",\n  \"timeout_seconds\": 600\n}\n```\n\n**Parâmetros:**\n- `invitee_email`: Email do jogador a ser convidado\n- `timeout_seconds`: Tempo de expiração do convite em segundos (opcional)\n\n**Response:**\n- ID do convite\n- Email do convidado\n- Data/hora de expiração\n- Mensagem de sucesso\n\n**Requer autenticação JWT**\n**Apenas o criador do jogo pode enviar convites**"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Pending Invitations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/invitations/pending",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "invitations", "pending"]
+            },
+            "description": "Lista todos os convites pendentes para o usuário autenticado.\n\n**Response:**\n- Lista de convites pendentes\n- Para cada convite: ID, jogo, convidante, data de criação e expiração\n\n**Requer autenticação JWT**"
+          },
+          "response": []
+        },
+        {
+          "name": "Accept Invitation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/invitations/{{invitation_id}}/accept",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "invitations", "{{invitation_id}}", "accept"]
+            },
+            "description": "Aceita um convite para participar de um jogo.\n\n**Response:**\n- Mensagem de sucesso\n\n**Requer autenticação JWT**\n**O usuário autenticado deve ser o destinatário do convite**"
+          },
+          "response": []
+        },
+        {
+          "name": "Decline Invitation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/invitations/{{invitation_id}}/decline",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "invitations", "{{invitation_id}}", "decline"]
+            },
+            "description": "Recusa um convite para participar de um jogo.\n\n**Response:**\n- Mensagem de sucesso\n\n**Requer autenticação JWT**\n**O usuário autenticado deve ser o destinatário do convite**"
+          },
+          "response": []
+        }
+      ],
+      "description": "Endpoints para gerenciar convites de jogos"
     }
   ]
 }
