@@ -1,4 +1,10 @@
 use blackjack_service::{GameService, ServiceConfig};
+use uuid::Uuid;
+
+// Helper function to create a test creator_id
+fn test_creator_id() -> Uuid {
+    Uuid::new_v4()
+}
 
 #[test]
 fn test_service_config_defaults() {
@@ -30,7 +36,7 @@ fn test_create_game_success() {
     let service = GameService::new_default();
     let emails = vec!["player1@test.com".to_string(), "player2@test.com".to_string()];
 
-    let result = service.create_game(emails);
+    let result = service.create_game(test_creator_id(), emails);
     assert!(result.is_ok());
 }
 
@@ -49,7 +55,7 @@ fn test_create_game_too_many_players() {
         "p4@test.com".to_string(),
     ];
 
-    let result = service.create_game(emails);
+    let result = service.create_game(test_creator_id(), emails);
     assert!(result.is_err());
 }
 
@@ -63,7 +69,7 @@ fn test_create_game_too_few_players() {
 
     let emails = vec!["p1@test.com".to_string()];
 
-    let result = service.create_game(emails);
+    let result = service.create_game(test_creator_id(), emails);
     assert!(result.is_err());
 }
 
@@ -72,7 +78,7 @@ fn test_draw_card() {
     let service = GameService::new_default();
     let emails = vec!["player1@test.com".to_string()];
 
-    let game_id = service.create_game(emails.clone()).unwrap();
+    let game_id = service.create_game(test_creator_id(), emails.clone()).unwrap();
     let result = service.draw_card(game_id, "player1@test.com");
 
     assert!(result.is_ok());
@@ -95,7 +101,7 @@ fn test_set_ace_value() {
     let service = GameService::new_default();
     let emails = vec!["player1@test.com".to_string()];
 
-    let game_id = service.create_game(emails).unwrap();
+    let game_id = service.create_game(test_creator_id(), emails).unwrap();
 
     // Draw cards until we get an Ace
     let mut ace_card_id = None;
@@ -123,7 +129,7 @@ fn test_get_game_state() {
     let service = GameService::new_default();
     let emails = vec!["player1@test.com".to_string(), "player2@test.com".to_string()];
 
-    let game_id = service.create_game(emails).unwrap();
+    let game_id = service.create_game(test_creator_id(), emails).unwrap();
     let result = service.get_game_state(game_id);
 
     assert!(result.is_ok());
@@ -138,7 +144,7 @@ fn test_finish_game() {
     let service = GameService::new_default();
     let emails = vec!["player1@test.com".to_string(), "player2@test.com".to_string()];
 
-    let game_id = service.create_game(emails).unwrap();
+    let game_id = service.create_game(test_creator_id(), emails).unwrap();
 
     // Draw some cards
     let _ = service.draw_card(game_id, "player1@test.com");
@@ -159,7 +165,7 @@ fn test_concurrent_access() {
     let service = Arc::new(GameService::new_default());
     let emails = vec!["player1@test.com".to_string(), "player2@test.com".to_string()];
 
-    let game_id = service.create_game(emails).unwrap();
+    let game_id = service.create_game(test_creator_id(), emails).unwrap();
 
     let mut handles = vec![];
 
@@ -198,7 +204,7 @@ fn test_draw_until_deck_empty() {
     let service = GameService::new_default();
     let emails = vec!["player1@test.com".to_string()];
 
-    let game_id = service.create_game(emails).unwrap();
+    let game_id = service.create_game(test_creator_id(), emails).unwrap();
 
     // Draw all 52 cards
     for _ in 0..52 {
