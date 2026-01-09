@@ -28,8 +28,9 @@
 
 use blackjack_api::config::AppConfig;
 use blackjack_api::handlers::{
-    create_game, draw_card, finish_game, get_game_results, get_game_state, health_check, login,
-    ready_check, set_ace_value,
+    accept_invitation, create_game, create_invitation, decline_invitation, draw_card,
+    finish_game, get_game_results, get_game_state, get_pending_invitations, health_check,
+    login_v2, ready_check, register_user, set_ace_value, stand,
 };
 use blackjack_api::middleware::{auth_middleware, rate_limit_middleware, version_deprecation_middleware};
 use blackjack_api::rate_limiter::RateLimiter;
@@ -119,16 +120,23 @@ async fn main() {
         // Health check endpoints (public, no authentication)
         .route("/health", get(health_check))
         .route("/health/ready", get(ready_check))
-        // Public authentication endpoint
-        .route("/api/v1/auth/login", post(login))
+        // M7: User authentication endpoints
+        .route("/api/v1/auth/register", post(register_user))
+        .route("/api/v1/auth/login", post(login_v2))
         // Public game creation endpoint
         .route("/api/v1/games", post(create_game))
         // Protected game endpoints (require JWT authentication)
         .route("/api/v1/games/:game_id", get(get_game_state))
         .route("/api/v1/games/:game_id/draw", post(draw_card))
         .route("/api/v1/games/:game_id/ace", put(set_ace_value))
+        .route("/api/v1/games/:game_id/stand", post(stand))
         .route("/api/v1/games/:game_id/finish", post(finish_game))
         .route("/api/v1/games/:game_id/results", get(get_game_results))
+        // M7: Invitation endpoints
+        .route("/api/v1/games/:game_id/invitations", post(create_invitation))
+        .route("/api/v1/invitations/pending", get(get_pending_invitations))
+        .route("/api/v1/invitations/:id/accept", post(accept_invitation))
+        .route("/api/v1/invitations/:id/decline", post(decline_invitation))
         // Apply middleware layers in order (executed bottom-to-top)
         .layer(
             ServiceBuilder::new()

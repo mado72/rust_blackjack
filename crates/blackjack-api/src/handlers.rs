@@ -693,6 +693,14 @@ pub struct DrawCardRequest {
 ///   }
 ///   ```
 /// - **404 Not Found** - Game or player does not exist
+/// - **409 Conflict** - Not player's turn (M7)
+///   ```json
+///   {
+///     "message": "It's not your turn",
+///     "code": "NOT_YOUR_TURN",
+///     "status": 409
+///   }
+///   ```
 /// - **410 Gone** - Deck is empty
 ///
 /// # Example
@@ -718,6 +726,18 @@ pub async fn draw_card(
             "GAME_MISMATCH",
             "Token is for a different game",
         ));
+    }
+
+    // M7: Validate it's the player's turn
+    let game_state = state.game_service.get_game_state(game_id)?;
+    if let Some(current_player) = game_state.current_turn_player {
+        if current_player != claims.email {
+            return Err(ApiError::new(
+                StatusCode::CONFLICT,
+                "NOT_YOUR_TURN",
+                "It's not your turn",
+            ));
+        }
     }
 
     let response = state.game_service.draw_card(game_id, &claims.email)?;
@@ -982,4 +1002,579 @@ pub async fn get_game_results(
     let result = state.game_service.get_game_results(game_id)?;
 
     Ok(Json(result))
+}
+
+// ============================================================================
+// M7: User Management Endpoints
+// ============================================================================
+
+/// Request to register a new user
+#[derive(Debug, Deserialize)]
+pub struct RegisterRequest {
+    /// User's email address
+    pub email: String,
+    
+    /// User's password (will be hashed)
+    pub password: String,
+}
+
+/// Response for successful user registration
+#[derive(Debug, Serialize)]
+pub struct RegisterResponse {
+    /// Unique user ID
+    pub user_id: Uuid,
+    
+    /// User's email
+    pub email: String,
+    
+    /// Success message
+    pub message: String,
+}
+
+/// Registers a new user
+///
+/// Creates a new user account with email and password.
+/// Password is hashed before storage (currently using placeholder,
+/// will be upgraded to Argon2 in M8).
+///
+/// # Endpoint
+///
+/// `POST /api/v1/auth/register`
+///
+/// # Authentication
+///
+/// No authentication required (public endpoint).
+///
+/// # Request Body
+///
+/// ```json
+/// {
+///   "email": "user@example.com",
+///   "password": "SecurePassword123!"
+/// }
+/// ```
+///
+/// # Response
+///
+/// **Success (200 OK)**:
+/// ```json
+/// {
+///   "user_id": "550e8400-e29b-41d4-a716-446655440000",
+///   "email": "user@example.com",
+///   "message": "User registered successfully"
+/// }
+/// ```
+///
+/// # Errors
+///
+/// - **400 Bad Request** - Invalid email or password
+/// - **409 Conflict** - User already exists
+#[tracing::instrument(skip(state))]
+pub async fn register_user(
+    State(state): State<crate::AppState>,
+    Json(payload): Json<RegisterRequest>,
+) -> Result<Json<RegisterResponse>, ApiError> {
+    let user_id = state.user_service.register(payload.email.clone(), payload.password)?;
+    
+    tracing::info!(
+        user_id = %user_id,
+        email = %payload.email,
+        "User registered successfully"
+    );
+
+    Ok(Json(RegisterResponse {
+        user_id,
+        email: payload.email,
+        message: "User registered successfully".to_string(),
+    }))
+}
+
+/// Updated login request supporting both game-based and user-based auth
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum LoginRequestV2 {
+    /// Game-based authentication (M6 backward compatibility)
+    GameAuth {
+        email: String,
+        game_id: String,
+    },
+    /// User-based authentication (M7 new method)
+    UserAuth {
+        email: String,
+        password: String,
+    },
+}
+
+/// Login with user credentials (M7 enhancement)
+///
+/// Supports two authentication modes:
+/// 1. Game-based: email + game_id (M6 backward compatibility)
+/// 2. User-based: email + password (M7 new feature)
+///
+/// # Endpoint
+///
+/// `POST /api/v1/auth/login`
+///
+/// # Authentication
+///
+/// No authentication required (public endpoint).
+///
+/// # Request Body (User Auth)
+///
+/// ```json
+/// {
+///   "email": "user@example.com",
+///   "password": "SecurePassword123!"
+/// }
+/// ```
+///
+/// # Request Body (Game Auth - Legacy)
+///
+/// ```json
+/// {
+///   "email": "player@example.com",
+///   "game_id": "550e8400-e29b-41d4-a716-446655440000"
+/// }
+/// ```
+///
+/// # Response
+///
+/// **Success (200 OK)**:
+/// ```json
+/// {
+///   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+///   "expires_in": 86400
+/// }
+/// ```
+///
+/// # Errors
+///
+/// - **400 Bad Request** - Invalid credentials format
+/// - **401 Unauthorized** - Invalid email or password
+/// - **403 Forbidden** - Player not in game (game auth mode)
+#[tracing::instrument(skip(state))]
+pub async fn login_v2(
+    State(state): State<crate::AppState>,
+    Json(payload): Json<LoginRequestV2>,
+) -> Result<Json<LoginResponse>, ApiError> {
+    match payload {
+        LoginRequestV2::UserAuth { email, password } => {
+            // M7: Authenticate with UserService
+            let user = state.user_service.login(&email, &password)?;
+            
+            let expiration = chrono::Utc::now()
+                + chrono::Duration::hours(state.config.jwt.expiration_hours as i64);
+
+            let claims = Claims {
+                user_id: user.id.to_string(),
+                email: user.email.clone(),
+                game_id: None, // No game_id for user auth
+                exp: expiration.timestamp() as usize,
+            };
+
+            let token = encode(
+                &Header::default(),
+                &claims,
+                &EncodingKey::from_secret(state.config.jwt.secret.as_bytes()),
+            )
+            .map_err(|err| {
+                tracing::error!(error = ?err, "Failed to generate JWT token");
+                ApiError::new(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "TOKEN_GENERATION_FAILED",
+                    "Failed to generate authentication token",
+                )
+            })?;
+
+            tracing::info!(
+                user_id = %user.id,
+                email = %user.email,
+                "User authenticated successfully"
+            );
+
+            Ok(Json(LoginResponse {
+                token,
+                expires_in: state.config.jwt.expiration_hours * 3600,
+            }))
+        }
+        LoginRequestV2::GameAuth { email, game_id } => {
+            // M6: Original game-based authentication
+            login(
+                State(state),
+                Json(LoginRequest { email, game_id })
+            ).await
+        }
+    }
+}
+
+// ============================================================================
+// M7: Invitation Management Endpoints
+// ============================================================================
+
+/// Request to create a game invitation
+#[derive(Debug, Deserialize)]
+pub struct CreateInvitationRequest {
+    /// Email of the user to invite
+    pub invitee_email: String,
+    
+    /// Optional timeout in seconds (defaults to config value)
+    pub timeout_seconds: Option<u64>,
+}
+
+/// Response for created invitation
+#[derive(Debug, Serialize)]
+pub struct CreateInvitationResponse {
+    /// Invitation ID
+    pub invitation_id: Uuid,
+    
+    /// Invitee email
+    pub invitee_email: String,
+    
+    /// Expiration timestamp
+    pub expires_at: String,
+    
+    /// Success message
+    pub message: String,
+}
+
+/// Creates a game invitation
+///
+/// Game creator can invite additional players to join the game.
+/// Invitations have a configurable timeout.
+///
+/// # Endpoint
+///
+/// `POST /api/v1/games/:game_id/invitations`
+///
+/// # Authentication
+///
+/// **Required** - Must be the game creator.
+///
+/// # Request Body
+///
+/// ```json
+/// {
+///   "invitee_email": "newplayer@example.com",
+///   "timeout_seconds": 600
+/// }
+/// ```
+#[tracing::instrument(skip(state))]
+pub async fn create_invitation(
+    State(state): State<crate::AppState>,
+    Extension(claims): Extension<Claims>,
+    Path(game_id): Path<Uuid>,
+    Json(payload): Json<CreateInvitationRequest>,
+) -> Result<Json<CreateInvitationResponse>, ApiError> {
+    // Verify user is game creator
+    let user_id = Uuid::parse_str(&claims.user_id).map_err(|_| {
+        ApiError::new(StatusCode::BAD_REQUEST, "INVALID_USER_ID", "Invalid user ID")
+    })?;
+
+    if !state.game_service.is_game_creator(game_id, user_id)? {
+        return Err(ApiError::new(
+            StatusCode::FORBIDDEN,
+            "NOT_CREATOR",
+            "Only game creator can send invitations",
+        ));
+    }
+
+    // Get user email for inviter
+    let user = state.user_service.get_user(user_id)?;
+    
+    let invitation_id = state.invitation_service.create(
+        game_id,
+        user.email.clone(),
+        payload.invitee_email.clone(),
+        payload.timeout_seconds,
+    )?;
+    
+    let invitation = state.invitation_service.get_invitation(invitation_id)?;
+
+    tracing::info!(
+        invitation_id = %invitation.id,
+        game_id = %game_id,
+        invitee = %payload.invitee_email,
+        "Invitation created"
+    );
+
+    Ok(Json(CreateInvitationResponse {
+        invitation_id: invitation.id,
+        invitee_email: invitation.invitee_email.clone(),
+        expires_at: invitation.expires_at.clone(),
+        message: "Invitation sent successfully".to_string(),
+    }))
+}
+
+/// Response for pending invitations list
+#[derive(Debug, Serialize)]
+pub struct PendingInvitationsResponse {
+    /// List of pending invitations
+    pub invitations: Vec<InvitationInfo>,
+}
+
+/// Information about a single invitation
+#[derive(Debug, Serialize)]
+pub struct InvitationInfo {
+    /// Invitation ID
+    pub id: Uuid,
+    
+    /// Game ID
+    pub game_id: Uuid,
+    
+    /// Inviter user ID
+    pub inviter_id: Uuid,
+    
+    /// Expiration timestamp
+    pub expires_at: String,
+}
+
+/// Gets pending invitations for authenticated user
+///
+/// Returns all non-expired invitations for the current user.
+///
+/// # Endpoint
+///
+/// `GET /api/v1/invitations/pending`
+///
+/// # Authentication
+///
+/// **Required** - User must be authenticated.
+#[tracing::instrument(skip(state))]
+pub async fn get_pending_invitations(
+    State(state): State<crate::AppState>,
+    Extension(claims): Extension<Claims>,
+) -> Result<Json<PendingInvitationsResponse>, ApiError> {
+    let invitations = state.invitation_service.get_pending_for_user(&claims.email);
+    
+    // Service já retorna Vec<InvitationInfo>, mas precisamos converter para nosso tipo local
+    let invitation_infos: Vec<InvitationInfo> = invitations
+        .into_iter()
+        .map(|inv| {
+            // Parse inviter_email to get inviter_id (simplified for now)
+            let inviter_id = Uuid::new_v4(); // TODO: lookup real user_id
+            InvitationInfo {
+                id: inv.id,
+                game_id: inv.game_id,
+                inviter_id,
+                expires_at: inv.expires_at,
+            }
+        })
+        .collect();
+
+    Ok(Json(PendingInvitationsResponse {
+        invitations: invitation_infos,
+    }))
+}
+
+/// Response for invitation acceptance
+#[derive(Debug, Serialize)]
+pub struct AcceptInvitationResponse {
+    /// Game ID the user joined
+    pub game_id: Uuid,
+    
+    /// JWT token for the game
+    pub token: String,
+    
+    /// Token expiration
+    pub expires_in: u64,
+    
+    /// Success message
+    pub message: String,
+}
+
+/// Accepts a game invitation
+///
+/// User accepts an invitation and is added to the game.
+/// Returns a JWT token for immediate gameplay.
+///
+/// # Endpoint
+///
+/// `POST /api/v1/invitations/:id/accept`
+///
+/// # Authentication
+///
+/// **Required** - User must be the invitee.
+#[tracing::instrument(skip(state))]
+pub async fn accept_invitation(
+    State(state): State<crate::AppState>,
+    Extension(claims): Extension<Claims>,
+    Path(invitation_id): Path<Uuid>,
+) -> Result<Json<AcceptInvitationResponse>, ApiError> {
+    // Accept the invitation
+    let invitation = state.invitation_service.accept(invitation_id)?;
+    
+    // Verify the invitee email matches
+    if invitation.invitee_email != claims.email {
+        return Err(ApiError::new(
+            StatusCode::FORBIDDEN,
+            "NOT_INVITEE",
+            "This invitation is not for you",
+        ));
+    }
+    
+    // Add player to game
+    state.game_service.add_player_to_game(invitation.game_id, claims.email.clone())?;
+    
+    // Generate game token
+    let expiration = chrono::Utc::now()
+        + chrono::Duration::hours(state.config.jwt.expiration_hours as i64);
+
+    let game_claims = Claims {
+        user_id: claims.user_id.clone(),
+        email: claims.email.clone(),
+        game_id: Some(invitation.game_id.to_string()),
+        exp: expiration.timestamp() as usize,
+    };
+
+    let token = encode(
+        &Header::default(),
+        &game_claims,
+        &EncodingKey::from_secret(state.config.jwt.secret.as_bytes()),
+    )
+    .map_err(|err| {
+        tracing::error!(error = ?err, "Failed to generate JWT token");
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "TOKEN_GENERATION_FAILED",
+            "Failed to generate authentication token",
+        )
+    })?;
+
+    tracing::info!(
+        invitation_id = %invitation_id,
+        game_id = %invitation.game_id,
+        email = %claims.email,
+        "Invitation accepted, player added to game"
+    );
+
+    Ok(Json(AcceptInvitationResponse {
+        game_id: invitation.game_id,
+        token,
+        expires_in: state.config.jwt.expiration_hours * 3600,
+        message: "Invitation accepted, joined game successfully".to_string(),
+    }))
+}
+
+/// Response for invitation decline
+#[derive(Debug, Serialize)]
+pub struct DeclineInvitationResponse {
+    /// Success message
+    pub message: String,
+}
+
+/// Declines a game invitation
+///
+/// User declines an invitation. The invitation is marked as declined.
+///
+/// # Endpoint
+///
+/// `POST /api/v1/invitations/:id/decline`
+///
+/// # Authentication
+///
+/// **Required** - User must be the invitee.
+#[tracing::instrument(skip(state))]
+pub async fn decline_invitation(
+    State(state): State<crate::AppState>,
+    Extension(claims): Extension<Claims>,
+    Path(invitation_id): Path<Uuid>,
+) -> Result<Json<DeclineInvitationResponse>, ApiError> {
+    // Get invitation to verify invitee
+    let invitation = state.invitation_service.get_invitation(invitation_id)?;
+    if invitation.invitee_email != claims.email {
+        return Err(ApiError::new(
+            StatusCode::FORBIDDEN,
+            "NOT_INVITEE",
+            "This invitation is not for you",
+        ));
+    }
+    
+    state.invitation_service.decline(invitation_id)?;
+    
+    tracing::info!(
+        invitation_id = %invitation_id,
+        email = %claims.email,
+        "Invitation declined"
+    );
+
+    Ok(Json(DeclineInvitationResponse {
+        message: "Invitation declined".to_string(),
+    }))
+}
+
+// ============================================================================
+// M7: Turn-Based Gameplay Endpoints
+// ============================================================================
+
+/// Response for stand action
+#[derive(Debug, Serialize)]
+pub struct StandResponse {
+    /// Current player points
+    pub points: u32,
+    
+    /// Whether player is busted
+    pub busted: bool,
+    
+    /// Success message
+    pub message: String,
+    
+    /// Game automatically finished?
+    pub game_finished: bool,
+}
+
+/// Player stands (stops drawing cards)
+///
+/// Marks the player as standing and advances to next turn.
+/// If all players have stood or busted, game finishes automatically.
+///
+/// # Endpoint
+///
+/// `POST /api/v1/games/:game_id/stand`
+///
+/// # Authentication
+///
+/// **Required** - Must be player's turn.
+#[tracing::instrument(skip(state), fields(player_email = %claims.email))]
+pub async fn stand(
+    State(state): State<crate::AppState>,
+    Extension(claims): Extension<Claims>,
+    Path(game_id): Path<Uuid>,
+) -> Result<Json<StandResponse>, ApiError> {
+    // Verify the game_id matches the token
+    let token_game_id = Uuid::parse_str(get_game_id_from_claims(&claims)?).map_err(|_| {
+        ApiError::new(StatusCode::BAD_REQUEST, "INVALID_GAME_ID", "Invalid game ID in token")
+    })?;
+
+    if game_id != token_game_id {
+        return Err(ApiError::new(
+            StatusCode::FORBIDDEN,
+            "GAME_MISMATCH",
+            "Token is for a different game",
+        ));
+    }
+
+    let game_state = state.game_service.stand(game_id, &claims.email)?;
+    
+    // Get player info from response
+    let player_info = game_state.players.get(&claims.email)
+        .ok_or_else(|| ApiError::new(
+            StatusCode::NOT_FOUND,
+            "PLAYER_NOT_FOUND",
+            "Player not found in game",
+        ))?;
+    
+    tracing::info!(
+        game_id = %game_id,
+        email = %claims.email,
+        points = player_info.points,
+        game_finished = game_state.finished,
+        "Player stood"
+    );
+
+    Ok(Json(StandResponse {
+        points: player_info.points as u32,
+        busted: player_info.busted,
+        message: "Player stood successfully".to_string(),
+        game_finished: game_state.finished,
+    }))
 }
