@@ -4,13 +4,11 @@ This document lists all available resources for testing the Blackjack API.
 
 ## ✅ Current Status (January 2026)
 
-**M6 Endpoints:** ✅ 9 fully functional endpoints  
-**M7 Endpoints:** ✅ 7 new implemented and functional endpoints  
-**Total:** ✅ **16 HTTP endpoints ready to use**
+**Total Endpoints:** ✅ **16 HTTP endpoints fully functional**
 
-All testing resources below work with the **16 available endpoints**. Complete turn system, users, and invitations now accessible!
+All testing resources below work with the complete API. Turn-based gameplay, user management, and invitation system are all ready!
 
-See [M7_CHANGES.md](M7_CHANGES.md) and [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for details.
+See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for complete feature details.
 
 ---
 
@@ -32,39 +30,36 @@ See [M7_CHANGES.md](M7_CHANGES.md) and [IMPLEMENTATION_STATUS.md](IMPLEMENTATION
 
 ### For Postman
 
-| Arquivo | Tipo | Descrição |
+| File | Type | Description |
 |---------|------|-----------|
-| [Blackjack_API.postman_collection.json](Blackjack_API.postman_collection.json) | Collection | Coleção completa com All endpoints |
-| [Blackjack_API_Local.postman_environment.json](Blackjack_API_Local.postman_environment.json) | Environment | Variáveis para ambiente local |
-| [POSTMAN_GUIDE.md](POSTMAN_GUIDE.md) | Documentation | Guia completo de uso do Postman |
-| [M7_CHANGES.md](M7_CHANGES.md) | Documentation | ⚠️ M7 Backend Status (endpoints não disponíveis) |
+| [Blackjack_API.postman_collection.json](Blackjack_API.postman_collection.json) | Collection | Complete collection with all endpoints |
+| [Blackjack_API_Local.postman_environment.json](Blackjack_API_Local.postman_environment.json) | Environment | Variables for local environment |
+| [POSTMAN_GUIDE.md](POSTMAN_GUIDE.md) | Documentation | Complete Postman usage guide |
 
 **How to Use:**
 1. Open Postman
-2. Import → Select os 2 arquivos .json
+2. Import → Select the 2 .json files
 3. Select environment "Blackjack API - Local"
 4. Follow guide in POSTMAN_GUIDE.md
 
-**✅ Endpoints M6 (9 funcionais):**
-- Health checks (2)
-- Authentication (1 - login para games)
-- Game management (4)
-- Player actions (2)
-
-**❌ M7 Endpoints (backend only, sem HTTP):**
-- Ver [M7_CHANGES.md](M7_CHANGES.md) para lista completa e status
+**✅ Available Features:**
+- Health checks (2 endpoints)
+- User authentication (2 endpoints)
+- Game management (4 endpoints)
+- Gameplay actions (3 endpoints)
+- Invitation system (5 endpoints)
 
 ---
 
 ### For VS Code
 
-| Arquivo | Tipo | Descrição |
+| File | Type | Description |
 |---------|------|-----------|
-| [api_tests.http](api_tests.http) | HTTP File | Requests prontos para REST Client |
+| [api_tests.http](api_tests.http) | HTTP File | Ready-to-use requests for REST Client |
 
 **How to Use:**
 1. Install extension: `REST Client` (humao.rest-client)
-2. Open arquivo `api_tests.http`
+2. Open file `api_tests.http`
 3. Click "Send Request" above each request
 
 **Features:**
@@ -77,18 +72,18 @@ See [M7_CHANGES.md](M7_CHANGES.md) and [IMPLEMENTATION_STATUS.md](IMPLEMENTATION
 
 ### Automated Scripts
 
-| Arquivo | Linguagem | Descrição |
+| File | Language | Description |
 |---------|-----------|-----------|
-| [test_api.ps1](test_api.ps1) | PowerShell | Suite completa de Automated Testing |
+| [test_api.ps1](test_api.ps1) | PowerShell | Complete automated testing suite |
 
 **How to Use:**
 ```powershell
-# Terminal PowerShell
+# PowerShell Terminal
 .\test_api.ps1
 ```
 
 **What it does:**
-- ✅ Tests all endpoints em sequência
+- ✅ Tests all endpoints in sequence
 - ✅ Validates responses
 - ✅ Manages variables automatically
 - ✅ Shows colored output

@@ -2,28 +2,27 @@
 
 This folder contains all necessary resources to test the Blackjack Multi-Player API.
 
-## ✅ M7 Status - January 2026 - COMPLETE!
+## ✅ Status - January 2026 - COMPLETE!
 
-**Milestone 7 (Turn-Based, Users, Invitations) is fully implemented!**
+**Turn-Based Multiplayer with User Management & Invitations**
 - ✅ Complete backend infrastructure
-- ✅ All 16 HTTP endpoints available (9 M6 + 7 M7)
+- ✅ All 16 HTTP endpoints available
 - ✅ Testable with Postman, cURL, and scripts
 
-See [M7_CHANGES.md](M7_CHANGES.md) for implementation details.
+See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for complete feature list.
 
 ## 📦 Available Files
 
 ### Postman Collections
-- **Blackjack_API.postman_collection.json** - Complete collection with 13 endpoints
+- **Blackjack_API.postman_collection.json** - Complete collection with all endpoints
 - **Blackjack_API_Local.postman_environment.json** - Environment with pre-configured variables
 
 ### Usage Guides
-- **[IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)** - 📊 M6 vs M7 Status (What works?)
+- **[IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)** - 📊 Complete feature matrix and status
 - **[POSTMAN_GUIDE.md](POSTMAN_GUIDE.md)** - Complete Postman tutorial (1,100+ lines)
 - **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Quick reference guide (350+ lines)
 - **[CURL_EXAMPLES.md](CURL_EXAMPLES.md)** - Ready-to-use cURL examples (450+ lines)
 - **[API_TESTING_INDEX.md](API_TESTING_INDEX.md)** - Navigable index of all resources
-- **[M7_CHANGES.md](M7_CHANGES.md)** - ⚠️ Milestone 7 documentation
 
 ### Testing Tools
 - **api_tests.http** - File for VS Code REST Client extension

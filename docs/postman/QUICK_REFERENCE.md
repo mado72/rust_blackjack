@@ -1,19 +1,15 @@
 # Blackjack API - Quick Reference Guide
 
-## ✅ UPDATE - M7 COMPLETE!
+## 🎮 Turn-Based Multiplayer Blackjack
 
-**Milestone 7 - Turn-Based Gameplay & User Management**
+Complete turn-based gameplay with user management and invitation system. All 16 endpoints are ready and tested!
 
-- ✅ **Complete backend** (Core, Service Layer)
-- ✅ **API HTTP Endpoints implemented** (16 endpoints total)
-- ✅ **Testable via Postman/cURL** - Ready to use!
-- 📖 See [M7_CHANGES.md](M7_CHANGES.md) for details
-
-**New M7 features now available:**
-- 🎮 Ordered turn system
-- 👥 User registration and login  
-- 📨 Invitation system with timeout
-- 🔄 Stand endpoint and auto-finish
+**Core Features:**
+- 🎮 Turn-based card drawing
+- 👥 User registration and authentication  
+- 📨 Invitation system with configurable timeouts
+- 🔄 Automatic game completion
+- 🏆 Real-time game state tracking
 
 ---
 
@@ -32,32 +28,33 @@ cargo run -p blackjack-api
 
 ### 3. Test Flow
 ```
-Health Check → Create Game → Login → Draw Cards → Finish Game → Results
+Health Check → Register → Login → Create Game → Invite Players → 
+Accept Invitation → Draw Cards → Stand → Results
 ```
 
 ---
 
-## 📋 Endpoints Disponíveis (16 endpoints)
+## 📋 Available Endpoints (16 total)
 
-**Status:** ✅ Todos implementados e funcionais (M6 + M7)
+**Status:** ✅ All implemented and functional
 
-| Endpoint | Método | Auth? | Versão | Descrição |
-|----------|--------|-------|---------|-----------|
-| `/health` | GET | ❌ | M6 | Status do servidor |
-| `/health/ready` | GET | ❌ | M6 | Prontidão dos componentes |
-| `/api/v1/auth/register` | POST | ❌ | M7 | Registrar novo usuário |
-| `/api/v1/auth/login` | POST | ❌ | M6+M7 | Autenticar (game ou user) |
-| `/api/v1/games` | POST | ❌ | M6 | Criar novo jogo |
-| `/api/v1/games/:id` | GET | ✅ | M6+M7 | Ver estado (com turnos) |
-| `/api/v1/games/:id/draw` | POST | ✅ | M6+M7 | Comprar carta (valida turno) |
-| `/api/v1/games/:id/ace` | PUT | ✅ | M6 | Mudar valor do Ás |
-| `/api/v1/games/:id/stand` | POST | ✅ | M7 | Jogador para de jogar |
-| `/api/v1/games/:id/finish` | POST | ✅ | M6 | Finalizar jogo |
-| `/api/v1/games/:id/results` | GET | ✅ | M6 | Ver resultados |
-| `/api/v1/games/:id/invitations` | POST | ✅ | M7 | Criar convite |
-| `/api/v1/invitations/pending` | GET | ✅ | M7 | Listar convites pendentes |
-| `/api/v1/invitations/:id/accept` | POST | ✅ | M7 | Aceitar convite |
-| `/api/v1/invitations/:id/decline` | POST | ✅ | M7 | Recusar convite |
+| Endpoint | Method | Auth? | Description |
+|----------|--------|-------|-------------|
+| `/health` | GET | ❌ | Server health status |
+| `/health/ready` | GET | ❌ | Component readiness |
+| `/api/v1/auth/register` | POST | ❌ | Register new user |
+| `/api/v1/auth/login` | POST | ❌ | User authentication |
+| `/api/v1/games` | POST | ✅ | Create new game |
+| `/api/v1/games/:id` | GET | ✅ | Get game state with turns |
+| `/api/v1/games/:id/draw` | POST | ✅ | Draw card (turn validated) |
+| `/api/v1/games/:id/ace` | PUT | ✅ | Change Ace value |
+| `/api/v1/games/:id/stand` | POST | ✅ | Player stands |
+| `/api/v1/games/:id/finish` | POST | ✅ | Finish game manually |
+| `/api/v1/games/:id/results` | GET | ✅ | View game results |
+| `/api/v1/games/:id/invitations` | POST | ✅ | Create invitation |
+| `/api/v1/invitations/pending` | GET | ✅ | List pending invitations |
+| `/api/v1/invitations/:id/accept` | POST | ✅ | Accept invitation |
+| `/api/v1/invitations/:id/decline` | POST | ✅ | Decline invitation |
 
 ---
 
