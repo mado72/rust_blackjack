@@ -36,7 +36,7 @@ use blackjack_api::rate_limiter::RateLimiter;
 use blackjack_api::AppState;
 use axum::routing::{get, post, put};
 use axum::Router;
-use blackjack_service::{GameService, ServiceConfig};
+use blackjack_service::{GameService, ServiceConfig, UserService, InvitationService, InvitationConfig};
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
@@ -74,14 +74,23 @@ async fn main() {
     let service_config = ServiceConfig::from_env();
     let game_service = Arc::new(GameService::new(service_config));
 
+    // Create user service for authentication
+    let user_service = Arc::new(UserService::new());
+
+    // Create invitation service with configuration
+    let invitation_config = InvitationConfig::from_env();
+    let invitation_service = Arc::new(InvitationService::new(invitation_config));
+
     // Create rate limiter with configured requests per minute
-    // Uses sliding window algorithm to track requests per player
+    // Uses sliding window algorithm to track requests per user
     let rate_limiter = RateLimiter::new(app_config.rate_limit.requests_per_minute);
 
     // Build shared application state
     // This state is cloned for each request and provides access to services
     let state = AppState {
         game_service,
+        user_service,
+        invitation_service,
         config: app_config.clone(),
         rate_limiter,
     };

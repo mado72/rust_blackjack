@@ -42,6 +42,17 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
+/// Helper function to extract game_id from claims (backward compatibility)
+fn get_game_id_from_claims(claims: &Claims) -> Result<&str, ApiError> {
+    claims.game_id.as_deref().ok_or_else(|| {
+        ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "MISSING_GAME_ID",
+            "Game ID not found in token"
+        )
+    })
+}
+
 /// Request payload for player authentication
 ///
 /// Used by the `POST /api/v1/auth/login` endpoint to authenticate
@@ -227,9 +238,12 @@ pub async fn login(
     let expiration = chrono::Utc::now()
         + chrono::Duration::hours(state.config.jwt.expiration_hours as i64);
 
+    // M7: Generate token with backward compatibility
+    // TODO M7: Update to use user_id from UserService authentication
     let claims = Claims {
+        user_id: payload.email.clone(), // Temporary: use email as user_id for backward compat
         email: payload.email.clone(),
-        game_id: payload.game_id.clone(),
+        game_id: Some(payload.game_id.clone()), // Keep for backward compatibility
         exp: expiration.timestamp() as usize,
     };
 
@@ -511,7 +525,10 @@ pub async fn create_game(
     }
 
     // Create game via service
-    let game_id = state.game_service.create_game(payload.emails)?;
+    // TODO M7: Update to require authentication and use user_id as creator_id
+    // For backward compatibility, use a placeholder UUID
+    let creator_id = Uuid::new_v4(); // Temporary placeholder
+    let game_id = state.game_service.create_game(creator_id, payload.emails)?;
 
     tracing::info!(
         game_id = %game_id,
@@ -591,7 +608,7 @@ pub async fn get_game_state(
     Path(game_id): Path<Uuid>,
 ) -> Result<Json<GameStateResponse>, ApiError> {
     // Verify the game_id matches the token
-    let token_game_id = Uuid::parse_str(&claims.game_id).map_err(|_| {
+    let token_game_id = Uuid::parse_str(get_game_id_from_claims(&claims)?).map_err(|_| {
         ApiError::new(StatusCode::BAD_REQUEST, "INVALID_GAME_ID", "Invalid game ID in token")
     })?;
 
@@ -691,7 +708,7 @@ pub async fn draw_card(
     Path(game_id): Path<Uuid>,
 ) -> Result<Json<DrawCardResponse>, ApiError> {
     // Verify the game_id matches the token
-    let token_game_id = Uuid::parse_str(&claims.game_id).map_err(|_| {
+    let token_game_id = Uuid::parse_str(get_game_id_from_claims(&claims)?).map_err(|_| {
         ApiError::new(StatusCode::BAD_REQUEST, "INVALID_GAME_ID", "Invalid game ID in token")
     })?;
 
@@ -781,7 +798,7 @@ pub async fn set_ace_value(
     Json(payload): Json<SetAceValueRequest>,
 ) -> Result<Json<PlayerStateResponse>, ApiError> {
     // Verify the game_id matches the token
-    let token_game_id = Uuid::parse_str(&claims.game_id).map_err(|_| {
+    let token_game_id = Uuid::parse_str(get_game_id_from_claims(&claims)?).map_err(|_| {
         ApiError::new(StatusCode::BAD_REQUEST, "INVALID_GAME_ID", "Invalid game ID in token")
     })?;
 
@@ -860,7 +877,7 @@ pub async fn finish_game(
     Path(game_id): Path<Uuid>,
 ) -> Result<Json<GameResult>, ApiError> {
     // Verify the game_id matches the token
-    let token_game_id = Uuid::parse_str(&claims.game_id).map_err(|_| {
+    let token_game_id = Uuid::parse_str(get_game_id_from_claims(&claims)?).map_err(|_| {
         ApiError::new(StatusCode::BAD_REQUEST, "INVALID_GAME_ID", "Invalid game ID in token")
     })?;
 
@@ -938,7 +955,7 @@ pub async fn get_game_results(
     Path(game_id): Path<Uuid>,
 ) -> Result<Json<GameResult>, ApiError> {
     // Verify the game_id matches the token
-    let token_game_id = Uuid::parse_str(&claims.game_id).map_err(|_| {
+    let token_game_id = Uuid::parse_str(get_game_id_from_claims(&claims)?).map_err(|_| {
         ApiError::new(StatusCode::BAD_REQUEST, "INVALID_GAME_ID", "Invalid game ID in token")
     })?;
 
