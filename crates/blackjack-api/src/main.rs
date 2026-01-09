@@ -30,7 +30,7 @@ use blackjack_api::config::AppConfig;
 use blackjack_api::handlers::{
     accept_invitation, create_game, create_invitation, decline_invitation, draw_card,
     finish_game, get_game_results, get_game_state, get_pending_invitations, health_check,
-    login_v2, ready_check, register_user, set_ace_value, stand,
+    login, ready_check, register_user, set_ace_value, stand,
 };
 use blackjack_api::middleware::{auth_middleware, rate_limit_middleware, version_deprecation_middleware};
 use blackjack_api::rate_limiter::RateLimiter;
@@ -122,7 +122,7 @@ async fn main() {
         .route("/health/ready", get(ready_check))
         // M7: User authentication endpoints
         .route("/api/v1/auth/register", post(register_user))
-        .route("/api/v1/auth/login", post(login_v2))
+        .route("/api/v1/auth/login", post(login))
         // Public game creation endpoint
         .route("/api/v1/games", post(create_game))
         // Protected game endpoints (require JWT authentication)

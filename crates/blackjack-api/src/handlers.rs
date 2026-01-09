@@ -42,47 +42,31 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-/// Helper function to extract game_id from claims (backward compatibility)
-fn get_game_id_from_claims(claims: &Claims) -> Result<&str, ApiError> {
-    claims.game_id.as_deref().ok_or_else(|| {
-        ApiError::new(
-            StatusCode::BAD_REQUEST,
-            "MISSING_GAME_ID",
-            "Game ID not found in token"
-        )
-    })
-}
-
-/// Request payload for player authentication
+/// Request payload for user authentication
 ///
 /// Used by the `POST /api/v1/auth/login` endpoint to authenticate
-/// a player for a specific game session.
+/// a user with email and password.
 ///
 /// # Validation
 ///
 /// - `email` must not be empty (validated by service layer)
-/// - `game_id` must be a valid UUID v4 string
-/// - Player must exist in the specified game
+/// - `password` must not be empty
 ///
 /// # Example
 ///
 /// ```json
 /// {
-///   "email": "player@example.com",
-///   "game_id": "550e8400-e29b-41d4-a716-446655440000"
+///   "email": "user@example.com",
+///   "password": "SecurePassword123!"
 /// }
 /// ```
 #[derive(Debug, Deserialize)]
 pub struct LoginRequest {
-    /// Player's email address
-    ///
-    /// Must match an email in the game's player list
+    /// User's email address
     pub email: String,
     
-    /// Game UUID as a string
-    ///
-    /// Must be a valid UUID v4 format and correspond to an existing game
-    pub game_id: String,
+    /// User's password
+    pub password: String,
 }
 
 /// Response payload for successful authentication
@@ -204,8 +188,8 @@ pub struct LoginResponse {
 /// curl -X POST http://localhost:8080/api/v1/auth/login \
 ///   -H "Content-Type: application/json" \
 ///   -d '{
-///     "email": "player1@example.com",
-///     "game_id": "550e8400-e29b-41d4-a716-446655440000"
+///     "email": "user@example.com",
+///     "password": "SecurePassword123!"
 ///   }'
 /// ```
 #[tracing::instrument(skip(state))]
@@ -213,37 +197,17 @@ pub async fn login(
     State(state): State<crate::AppState>,
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, ApiError> {
-    // Parse game_id from string to UUID
-    let game_id = uuid::Uuid::parse_str(&payload.game_id).map_err(|_| {
-        ApiError::new(StatusCode::BAD_REQUEST, "INVALID_GAME_ID", "Invalid game ID format")
-    })?;
-
-    // Validate that the player is in the game
-    let game_state = state.game_service.get_game_state(game_id)?;
-
-    if !game_state.players.contains_key(&payload.email) {
-        tracing::warn!(
-            email = payload.email,
-            game_id = payload.game_id,
-            "Authentication attempt for non-existent player"
-        );
-        return Err(ApiError::new(
-            StatusCode::FORBIDDEN,
-            "PLAYER_NOT_IN_GAME",
-            "Player not found in this game",
-        ));
-    }
-
+    // Authenticate user with UserService
+    let user = state.user_service.login(&payload.email, &payload.password)?;
+    
     // Calculate expiration time
     let expiration = chrono::Utc::now()
         + chrono::Duration::hours(state.config.jwt.expiration_hours as i64);
 
-    // M7: Generate token with backward compatibility
-    // TODO M7: Update to use user_id from UserService authentication
+    // Generate JWT claims
     let claims = Claims {
-        user_id: payload.email.clone(), // Temporary: use email as user_id for backward compat
-        email: payload.email.clone(),
-        game_id: Some(payload.game_id.clone()), // Keep for backward compatibility
+        user_id: user.id.to_string(),
+        email: user.email.clone(),
         exp: expiration.timestamp() as usize,
     };
 
@@ -263,14 +227,14 @@ pub async fn login(
     })?;
 
     tracing::info!(
-        email = payload.email,
-        game_id = payload.game_id,
-        "Player authenticated successfully"
+        user_id = %user.id,
+        email = %user.email,
+        "User authenticated successfully"
     );
 
     Ok(Json(LoginResponse {
         token,
-        expires_in: state.config.jwt.expiration_hours * 3600, // Convert to seconds
+        expires_in: state.config.jwt.expiration_hours * 3600,
     }))
 }
 
@@ -607,19 +571,6 @@ pub async fn get_game_state(
     Extension(claims): Extension<Claims>,
     Path(game_id): Path<Uuid>,
 ) -> Result<Json<GameStateResponse>, ApiError> {
-    // Verify the game_id matches the token
-    let token_game_id = Uuid::parse_str(get_game_id_from_claims(&claims)?).map_err(|_| {
-        ApiError::new(StatusCode::BAD_REQUEST, "INVALID_GAME_ID", "Invalid game ID in token")
-    })?;
-
-    if game_id != token_game_id {
-        return Err(ApiError::new(
-            StatusCode::FORBIDDEN,
-            "GAME_MISMATCH",
-            "Token is for a different game",
-        ));
-    }
-
     let state_response = state.game_service.get_game_state(game_id)?;
 
     Ok(Json(state_response))
@@ -715,20 +666,7 @@ pub async fn draw_card(
     Extension(claims): Extension<Claims>,
     Path(game_id): Path<Uuid>,
 ) -> Result<Json<DrawCardResponse>, ApiError> {
-    // Verify the game_id matches the token
-    let token_game_id = Uuid::parse_str(get_game_id_from_claims(&claims)?).map_err(|_| {
-        ApiError::new(StatusCode::BAD_REQUEST, "INVALID_GAME_ID", "Invalid game ID in token")
-    })?;
-
-    if game_id != token_game_id {
-        return Err(ApiError::new(
-            StatusCode::FORBIDDEN,
-            "GAME_MISMATCH",
-            "Token is for a different game",
-        ));
-    }
-
-    // M7: Validate it's the player's turn
+    // Validate it's the player's turn
     let game_state = state.game_service.get_game_state(game_id)?;
     if let Some(current_player) = game_state.current_turn_player {
         if current_player != claims.email {
@@ -817,19 +755,6 @@ pub async fn set_ace_value(
     Path(game_id): Path<Uuid>,
     Json(payload): Json<SetAceValueRequest>,
 ) -> Result<Json<PlayerStateResponse>, ApiError> {
-    // Verify the game_id matches the token
-    let token_game_id = Uuid::parse_str(get_game_id_from_claims(&claims)?).map_err(|_| {
-        ApiError::new(StatusCode::BAD_REQUEST, "INVALID_GAME_ID", "Invalid game ID in token")
-    })?;
-
-    if game_id != token_game_id {
-        return Err(ApiError::new(
-            StatusCode::FORBIDDEN,
-            "GAME_MISMATCH",
-            "Token is for a different game",
-        ));
-    }
-
     let response = state
         .game_service
         .set_ace_value(game_id, &claims.email, payload.card_id, payload.as_eleven)?;
@@ -896,19 +821,6 @@ pub async fn finish_game(
     Extension(claims): Extension<Claims>,
     Path(game_id): Path<Uuid>,
 ) -> Result<Json<GameResult>, ApiError> {
-    // Verify the game_id matches the token
-    let token_game_id = Uuid::parse_str(get_game_id_from_claims(&claims)?).map_err(|_| {
-        ApiError::new(StatusCode::BAD_REQUEST, "INVALID_GAME_ID", "Invalid game ID in token")
-    })?;
-
-    if game_id != token_game_id {
-        return Err(ApiError::new(
-            StatusCode::FORBIDDEN,
-            "GAME_MISMATCH",
-            "Token is for a different game",
-        ));
-    }
-
     let result = state.game_service.finish_game(game_id)?;
 
     Ok(Json(result))
@@ -974,19 +886,6 @@ pub async fn get_game_results(
     Extension(claims): Extension<Claims>,
     Path(game_id): Path<Uuid>,
 ) -> Result<Json<GameResult>, ApiError> {
-    // Verify the game_id matches the token
-    let token_game_id = Uuid::parse_str(get_game_id_from_claims(&claims)?).map_err(|_| {
-        ApiError::new(StatusCode::BAD_REQUEST, "INVALID_GAME_ID", "Invalid game ID in token")
-    })?;
-
-    if game_id != token_game_id {
-        return Err(ApiError::new(
-            StatusCode::FORBIDDEN,
-            "GAME_MISMATCH",
-            "Token is for a different game",
-        ));
-    }
-
     // Get game state to check if finished
     let game_state = state.game_service.get_game_state(game_id)?;
     
@@ -1089,126 +988,8 @@ pub async fn register_user(
     }))
 }
 
-/// Updated login request supporting both game-based and user-based auth
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
-pub enum LoginRequestV2 {
-    /// Game-based authentication (M6 backward compatibility)
-    GameAuth {
-        email: String,
-        game_id: String,
-    },
-    /// User-based authentication (M7 new method)
-    UserAuth {
-        email: String,
-        password: String,
-    },
-}
-
-/// Login with user credentials (M7 enhancement)
-///
-/// Supports two authentication modes:
-/// 1. Game-based: email + game_id (M6 backward compatibility)
-/// 2. User-based: email + password (M7 new feature)
-///
-/// # Endpoint
-///
-/// `POST /api/v1/auth/login`
-///
-/// # Authentication
-///
-/// No authentication required (public endpoint).
-///
-/// # Request Body (User Auth)
-///
-/// ```json
-/// {
-///   "email": "user@example.com",
-///   "password": "SecurePassword123!"
-/// }
-/// ```
-///
-/// # Request Body (Game Auth - Legacy)
-///
-/// ```json
-/// {
-///   "email": "player@example.com",
-///   "game_id": "550e8400-e29b-41d4-a716-446655440000"
-/// }
-/// ```
-///
-/// # Response
-///
-/// **Success (200 OK)**:
-/// ```json
-/// {
-///   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-///   "expires_in": 86400
-/// }
-/// ```
-///
-/// # Errors
-///
-/// - **400 Bad Request** - Invalid credentials format
-/// - **401 Unauthorized** - Invalid email or password
-/// - **403 Forbidden** - Player not in game (game auth mode)
-#[tracing::instrument(skip(state))]
-pub async fn login_v2(
-    State(state): State<crate::AppState>,
-    Json(payload): Json<LoginRequestV2>,
-) -> Result<Json<LoginResponse>, ApiError> {
-    match payload {
-        LoginRequestV2::UserAuth { email, password } => {
-            // M7: Authenticate with UserService
-            let user = state.user_service.login(&email, &password)?;
-            
-            let expiration = chrono::Utc::now()
-                + chrono::Duration::hours(state.config.jwt.expiration_hours as i64);
-
-            let claims = Claims {
-                user_id: user.id.to_string(),
-                email: user.email.clone(),
-                game_id: None, // No game_id for user auth
-                exp: expiration.timestamp() as usize,
-            };
-
-            let token = encode(
-                &Header::default(),
-                &claims,
-                &EncodingKey::from_secret(state.config.jwt.secret.as_bytes()),
-            )
-            .map_err(|err| {
-                tracing::error!(error = ?err, "Failed to generate JWT token");
-                ApiError::new(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "TOKEN_GENERATION_FAILED",
-                    "Failed to generate authentication token",
-                )
-            })?;
-
-            tracing::info!(
-                user_id = %user.id,
-                email = %user.email,
-                "User authenticated successfully"
-            );
-
-            Ok(Json(LoginResponse {
-                token,
-                expires_in: state.config.jwt.expiration_hours * 3600,
-            }))
-        }
-        LoginRequestV2::GameAuth { email, game_id } => {
-            // M6: Original game-based authentication
-            login(
-                State(state),
-                Json(LoginRequest { email, game_id })
-            ).await
-        }
-    }
-}
-
 // ============================================================================
-// M7: Invitation Management Endpoints
+// Invitation Management Endpoints
 // ============================================================================
 
 /// Request to create a game invitation
@@ -1372,12 +1153,6 @@ pub struct AcceptInvitationResponse {
     /// Game ID the user joined
     pub game_id: Uuid,
     
-    /// JWT token for the game
-    pub token: String,
-    
-    /// Token expiration
-    pub expires_in: u64,
-    
     /// Success message
     pub message: String,
 }
@@ -1385,7 +1160,6 @@ pub struct AcceptInvitationResponse {
 /// Accepts a game invitation
 ///
 /// User accepts an invitation and is added to the game.
-/// Returns a JWT token for immediate gameplay.
 ///
 /// # Endpoint
 ///
@@ -1415,30 +1189,8 @@ pub async fn accept_invitation(
     // Add player to game
     state.game_service.add_player_to_game(invitation.game_id, claims.email.clone())?;
     
-    // Generate game token
-    let expiration = chrono::Utc::now()
-        + chrono::Duration::hours(state.config.jwt.expiration_hours as i64);
-
-    let game_claims = Claims {
-        user_id: claims.user_id.clone(),
-        email: claims.email.clone(),
-        game_id: Some(invitation.game_id.to_string()),
-        exp: expiration.timestamp() as usize,
-    };
-
-    let token = encode(
-        &Header::default(),
-        &game_claims,
-        &EncodingKey::from_secret(state.config.jwt.secret.as_bytes()),
-    )
-    .map_err(|err| {
-        tracing::error!(error = ?err, "Failed to generate JWT token");
-        ApiError::new(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "TOKEN_GENERATION_FAILED",
-            "Failed to generate authentication token",
-        )
-    })?;
+    // Mark invitation as accepted
+    state.invitation_service.accept(invitation_id)?;
 
     tracing::info!(
         invitation_id = %invitation_id,
@@ -1449,8 +1201,6 @@ pub async fn accept_invitation(
 
     Ok(Json(AcceptInvitationResponse {
         game_id: invitation.game_id,
-        token,
-        expires_in: state.config.jwt.expiration_hours * 3600,
         message: "Invitation accepted, joined game successfully".to_string(),
     }))
 }
@@ -1540,19 +1290,6 @@ pub async fn stand(
     Extension(claims): Extension<Claims>,
     Path(game_id): Path<Uuid>,
 ) -> Result<Json<StandResponse>, ApiError> {
-    // Verify the game_id matches the token
-    let token_game_id = Uuid::parse_str(get_game_id_from_claims(&claims)?).map_err(|_| {
-        ApiError::new(StatusCode::BAD_REQUEST, "INVALID_GAME_ID", "Invalid game ID in token")
-    })?;
-
-    if game_id != token_game_id {
-        return Err(ApiError::new(
-            StatusCode::FORBIDDEN,
-            "GAME_MISMATCH",
-            "Token is for a different game",
-        ));
-    }
-
     let game_state = state.game_service.stand(game_id, &claims.email)?;
     
     // Get player info from response

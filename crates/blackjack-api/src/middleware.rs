@@ -103,7 +103,7 @@ pub async fn auth_middleware(
 
     tracing::debug!(
         email = token_data.claims.email,
-        game_id = token_data.claims.game_id,
+        user_id = token_data.claims.user_id,
         "Authentication successful"
     );
 

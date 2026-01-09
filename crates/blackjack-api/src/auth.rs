@@ -29,7 +29,6 @@ use serde::{Deserialize, Serialize};
 /// let claims = Claims {
 ///     user_id: "550e8400-e29b-41d4-a716-446655440000".to_string(),
 ///     email: "user@example.com".to_string(),
-///     game_id: Some("660e8400-e29b-41d4-a716-446655440000".to_string()), // For backward compatibility
 ///     exp: 1704672000, // Unix timestamp
 /// };
 /// ```
@@ -47,13 +46,6 @@ pub struct Claims {
     ///
     /// The email associated with the user account for reference.
     pub email: String,
-    
-    /// Game UUID as a string (optional, for backward compatibility)
-    ///
-    /// This field is kept for backward compatibility with M6 and will be
-    /// removed in M8. New code should use user_id for authentication.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub game_id: Option<String>,
     
     /// Token expiration time as Unix timestamp (seconds since epoch)
     ///
