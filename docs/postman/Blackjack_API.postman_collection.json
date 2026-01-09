@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Blackjack API",
-    "description": "Coleção completa de endpoints para testar a API Blackjack Multi-Player",
+    "description": "Coleção completa de endpoints para testar a API Blackjack Multi-Player\n\n⚠️ STATUS M7: Backend completo, mas endpoints HTTP NÃO disponíveis ainda\n✅ Todos os 9 endpoints desta coleção são M6 e estão FUNCIONAIS\n\nVer IMPLEMENTATION_STATUS.md para detalhes sobre recursos M7 pendentes.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {

@@ -2,6 +2,15 @@
 
 Este documento lista todos os recursos disponíveis para testar a Blackjack API.
 
+## ⚠️ Aviso - Status M7 (Janeiro 2026)
+
+**Endpoints M6:** ✅ Totalmente funcionais e testáveis  
+**Endpoints M7:** ❌ Backend pronto, mas sem HTTP endpoints ainda
+
+Todos os recursos de teste abaixo funcionam com os **9 endpoints M6 disponíveis**. Novos endpoints M7 (registro, convites, turnos) serão adicionados em futura atualização.
+
+Veja [M7_CHANGES.md](M7_CHANGES.md) para detalhes técnicos.
+
 ---
 
 ## 🎯 Por Onde Começar?
@@ -27,12 +36,22 @@ Este documento lista todos os recursos disponíveis para testar a Blackjack API.
 | [Blackjack_API.postman_collection.json](Blackjack_API.postman_collection.json) | Collection | Coleção completa com todos os endpoints |
 | [Blackjack_API_Local.postman_environment.json](Blackjack_API_Local.postman_environment.json) | Environment | Variáveis para ambiente local |
 | [POSTMAN_GUIDE.md](POSTMAN_GUIDE.md) | Documentação | Guia completo de uso do Postman |
+| [M7_CHANGES.md](M7_CHANGES.md) | Documentação | ⚠️ M7 Backend Status (endpoints não disponíveis) |
 
 **Como usar:**
 1. Abrir Postman
 2. Import → Selecionar os 2 arquivos .json
 3. Selecionar environment "Blackjack API - Local"
 4. Seguir o guia em POSTMAN_GUIDE.md
+
+**✅ Endpoints M6 (9 funcionais):**
+- Health checks (2)
+- Authentication (1 - login para games)
+- Game management (4)
+- Player actions (2)
+
+**❌ M7 Endpoints (backend only, sem HTTP):**
+- Ver [M7_CHANGES.md](M7_CHANGES.md) para lista completa e status
 
 ---
 

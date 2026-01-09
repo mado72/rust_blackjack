@@ -2,6 +2,12 @@
 
 Esta pasta contém todos os recursos necessários para testar a API Blackjack Multi-Player.
 
+## ⚠️ Status M7 - Janeiro 2026
+
+**Importante:** O Milestone 7 (Turn-Based, Users, Invitations) tem infraestrutura backend completa, mas **nenhum endpoint HTTP está disponível ainda**. Todos os testes e documentação abaixo referem-se aos endpoints M6 que estão **totalmente funcionais**.
+
+Veja [M7_CHANGES.md](M7_CHANGES.md) para detalhes sobre recursos pendentes.
+
 ## 📦 Arquivos Disponíveis
 
 ### Coleções Postman
@@ -9,10 +15,12 @@ Esta pasta contém todos os recursos necessários para testar a API Blackjack Mu
 - **Blackjack_API_Local.postman_environment.json** - Environment com variáveis pré-configuradas
 
 ### Guias de Uso
+- **[IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md)** - 📊 Status M6 vs M7 (O que funciona?)
 - **[POSTMAN_GUIDE.md](POSTMAN_GUIDE.md)** - Tutorial completo do Postman (1.100+ linhas)
 - **[QUICK_REFERENCE.md](QUICK_REFERENCE.md)** - Referência rápida para consulta (350+ linhas)
 - **[CURL_EXAMPLES.md](CURL_EXAMPLES.md)** - Exemplos prontos com cURL (450+ linhas)
 - **[API_TESTING_INDEX.md](API_TESTING_INDEX.md)** - Índice navegável de todos os recursos
+- **[M7_CHANGES.md](M7_CHANGES.md)** - ⚠️ Documentação do Milestone 7 (backend only)
 
 ### Ferramentas de Teste
 - **api_tests.http** - Arquivo para VS Code REST Client extension

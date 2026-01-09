@@ -1,5 +1,24 @@
 # Blackjack API - Guia Rápido de Referência
 
+## ⚠️ AVISO IMPORTANTE - M7 Status
+
+**Milestone 7 - Infraestrutura Implementada, Endpoints NÃO Disponíveis**
+
+- ✅ Backend completo (Core, Service Layer)
+- ❌ **API HTTP Endpoints NÃO criados**
+- ❌ **NÃO testável via Postman/cURL ainda**
+- 📖 Ver [M7_CHANGES.md](M7_CHANGES.md) para detalhes
+
+**Recursos M7 (apenas backend, sem HTTP):**
+- 🎮 Sistema de turnos ordenados (código existe)
+- 👥 UserService (sem endpoints /auth/register)
+- 📨 InvitationService (sem endpoints /invitations)
+- 🔄 Lógica de stand/auto-finish (sem endpoint /stand)
+
+**✅ Use os endpoints M6 abaixo - totalmente funcionais!**
+
+---
+
 ## 🚀 Início Rápido
 
 ### 1. Iniciar o Servidor
@@ -20,7 +39,9 @@ Health Check → Create Game → Login → Draw Cards → Finish Game → Result
 
 ---
 
-## 📋 Endpoints Resumidos
+## 📋 Endpoints Disponíveis (M6 - Funcionais)
+
+**Status:** ✅ Todos os endpoints abaixo estão implementados e funcionando
 
 | Endpoint | Método | Auth? | Descrição |
 |----------|--------|-------|-----------|
