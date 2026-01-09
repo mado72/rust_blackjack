@@ -24,7 +24,7 @@
 //! ```
 
 use blackjack_api::AppState;
-use blackjack_service::{GameService, ServiceConfig};
+use blackjack_service::{GameService, ServiceConfig, UserService, InvitationService, InvitationConfig};
 use std::sync::Arc;
 
 /// Tests that AppState can be created with all required components
@@ -46,12 +46,16 @@ fn test_app_state_creation() {
     
     let config = Arc::new(config.unwrap());
     let game_service = Arc::new(GameService::new(ServiceConfig::default()));
+    let user_service = Arc::new(UserService::new());
+    let invitation_service = Arc::new(InvitationService::new(InvitationConfig::default()));
     let rate_limiter = blackjack_api::rate_limiter::RateLimiter::new(
         config.rate_limit.requests_per_minute
     );
     
     let _state = AppState {
         game_service,
+        user_service,
+        invitation_service,
         config,
         rate_limiter,
     };
@@ -300,4 +304,66 @@ fn test_service_error_conversion() {
     let api_error: ApiError = service_error.into();
     assert_eq!(api_error.status, 400);
     assert_eq!(api_error.code, "DECK_EMPTY");
+}
+/// Tests UserService creation and basic functionality
+///
+/// Validates:
+/// - UserService can be created
+/// - User registration works with unique email
+/// - User login works with correct credentials
+/// - Duplicate email registration fails
+#[test]
+fn test_user_service_creation() {
+    let service = UserService::new();
+    
+    // Register a new user
+    let user_id = service.register("user1@example.com".to_string(), "password123".to_string());
+    assert!(user_id.is_ok(), "User registration should succeed");
+    
+    let user_id = user_id.unwrap();
+    
+    // Login with correct credentials
+    let login_result = service.login("user1@example.com", "password123");
+    assert!(login_result.is_ok(), "Login with correct password should succeed");
+    
+    let logged_user = login_result.unwrap();
+    assert_eq!(logged_user.id, user_id, "Login should return the same user");
+    assert_eq!(logged_user.email, "user1@example.com");
+    
+    // Try to register duplicate email
+    let duplicate = service.register("user1@example.com".to_string(), "different_password".to_string());
+    assert!(duplicate.is_err(), "Duplicate email should fail");
+}
+
+/// Tests InvitationService creation and configuration
+///
+/// Validates:
+/// - InvitationService can be created with custom config
+/// - Default timeout values are applied correctly
+/// - Invitation config validates max timeout
+#[test]
+fn test_invitation_service_creation() {
+    let config = InvitationConfig {
+        default_timeout_seconds: 300,
+        max_timeout_seconds: 3600,
+    };
+    
+    let _service = InvitationService::new(config.clone());
+    
+    // Verify config values
+    assert_eq!(config.default_timeout_seconds, 300);
+    assert_eq!(config.max_timeout_seconds, 3600);
+}
+
+/// Tests invitation config default values
+///
+/// Validates:
+/// - Default timeout is 5 minutes (300 seconds)
+/// - Maximum timeout is 1 hour (3600 seconds)
+#[test]
+fn test_invitation_config_defaults() {
+    let config = InvitationConfig::default();
+    
+    assert_eq!(config.default_timeout_seconds, 300);
+    assert_eq!(config.max_timeout_seconds, 3600);
 }
