@@ -8,7 +8,10 @@ This project provides a complete backend system for managing multi-player Blackj
 
 - **RESTful API**: Versioned endpoints under `/api/v1` with OpenAPI-style documentation
 - **JWT Authentication**: Secure player authentication per game session
-- **Rate Limiting**: Per-player request throttling using sliding window algorithm
+- **User Management**: User registration, login, and persistent accounts (M7)
+- **Turn-Based Gameplay**: Ordered turns, automatic advancement, smart turn skipping (M7)
+- **Game Invitations**: Invite system with configurable timeouts and status tracking (M7)
+- **Rate Limiting**: Per-user request throttling using sliding window algorithm
 - **Real-time Ready**: WebSocket blueprint for future real-time notifications
 - **Observability**: Structured logging with tracing, health checks, and metrics-ready architecture
 - **Production-Grade**: External configuration, CORS support, graceful error handling
@@ -615,6 +618,209 @@ curl -s -X POST "http://localhost:8080/api/v1/games/$GAME_ID/finish" \
 curl -s "http://localhost:8080/api/v1/games/$GAME_ID/results" \
   -H "Authorization: Bearer $TOKEN1" | jq
 ```
+
+## Milestone 7: Turn-Based Gameplay and User Management
+
+**Status**: Infrastructure Complete ✅ | API Handlers Pending ⏸️
+
+The M7 implementation introduces turn-based multiplayer gameplay with user management and game invitations. This milestone adds sophisticated game flow control while maintaining backward compatibility with existing endpoints.
+
+### Key Features
+
+#### 🎮 Turn-Based Gameplay
+- **Ordered Turns**: Players take turns in sequence based on join order
+- **Turn Validation**: Actions restricted to the current player's turn
+- **Auto-Advance**: Turns automatically advance when player stands, busts, or finishes
+- **Smart Skipping**: Turn system skips inactive players (standing/busted)
+
+#### 👥 User Management
+- **User Registration**: Create persistent user accounts with email/password
+- **User Authentication**: Secure login system with JWT tokens
+- **User Profiles**: User IDs linked to game sessions
+- **Creator Tracking**: Games track which user created them
+
+#### 📨 Game Invitations
+- **Invitation System**: Users can invite others to join games
+- **Timeout Control**: Configurable invitation expiration (default: 5 minutes, max: 1 hour)
+- **Status Tracking**: Pending, Accepted, Declined, Expired states
+- **Auto-Cleanup**: Expired invitations automatically detected
+
+### Data Structures
+
+#### User Model
+```rust
+pub struct User {
+    pub id: Uuid,              // Unique user identifier
+    pub email: String,         // Email address (unique)
+    pub password_hash: String, // Hashed password
+    pub created_at: DateTime<Utc>,
+}
+```
+
+#### Game Invitation
+```rust
+pub struct GameInvitation {
+    pub id: Uuid,
+    pub game_id: Uuid,
+    pub from_user_id: Uuid,    // Who sent the invitation
+    pub to_user_id: Uuid,      // Who receives it
+    pub status: InvitationStatus,
+    pub timeout_seconds: u64,   // Configurable timeout
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+}
+
+pub enum InvitationStatus {
+    Pending,
+    Accepted,
+    Declined,
+    Expired,
+}
+```
+
+#### Player State
+```rust
+pub enum PlayerState {
+    Active,      // Currently playing
+    Standing,    // Decided to stop drawing
+    Busted,      // Exceeded 21 points
+}
+```
+
+#### Enhanced Game Model
+The `Game` struct now includes:
+- `turn_order: Vec<String>` - Ordered list of player emails
+- `current_turn_index: usize` - Index of current player's turn
+- `creator_id: Uuid` - User who created the game
+- Player states tracked via `PlayerState` enum
+
+### New Services
+
+#### UserService
+```rust
+// Register new user
+user_service.register(email, password) -> Result<User>
+
+// Login existing user  
+user_service.login(email, password) -> Result<User>
+
+// Get user by ID
+user_service.get_user(user_id) -> Result<User>
+```
+
+#### InvitationService
+```rust
+// Create invitation with timeout (seconds)
+invitation_service.create(from_user_id, to_user_id, game_id, timeout_seconds)
+
+// Accept invitation
+invitation_service.accept(invitation_id)
+
+// Decline invitation
+invitation_service.decline(invitation_id)
+
+// Get pending invitations for user
+invitation_service.get_pending_for_user(user_id)
+
+// Cleanup expired invitations
+invitation_service.cleanup_expired()
+```
+
+#### Enhanced GameService
+```rust
+// Create game now requires creator_id
+game_service.create_game(emails, creator_id) -> Result<Uuid>
+
+// Stand - player stops drawing cards
+game_service.stand(game_id, email) -> Result<()>
+
+// Turn management (automatic)
+game.advance_turn()           // Move to next active player
+game.get_current_player()     // Get email of current player
+game.can_player_act(email)    // Check if player can act now
+game.check_auto_finish()      // Auto-finish if all done
+```
+
+### Configuration
+
+Add to `crates/blackjack-api/config.toml`:
+
+```toml
+[invitations]
+default_timeout_seconds = 300    # 5 minutes default
+max_timeout_seconds = 3600       # 1 hour maximum
+```
+
+**Environment Variables:**
+```bash
+export BLACKJACK_INVITATIONS_DEFAULT_TIMEOUT_SECONDS=300
+export BLACKJACK_INVITATIONS_MAX_TIMEOUT_SECONDS=3600
+```
+
+### Updated JWT Structure
+
+The JWT token claims now include user authentication:
+
+```rust
+pub struct Claims {
+    pub sub: String,           // Subject (email)
+    pub exp: usize,            // Expiration timestamp
+    pub user_id: Uuid,         // NEW: User ID
+    pub game_id: Option<Uuid>, // Optional: Game ID (backward compatible)
+}
+```
+
+### Backward Compatibility
+
+✅ **Fully Backward Compatible**:
+- Existing endpoints continue to work unchanged
+- `game_id` in JWT claims is now `Optional<Uuid>`
+- Login endpoint accepts both old format (email + game_id) and new format (email + password for user auth)
+- Rate limiting updated to use `user_id` instead of game-specific limits
+
+### Implementation Status
+
+#### ✅ Completed
+- [x] Core data structures (User, GameInvitation, PlayerState)
+- [x] Game turn management logic
+- [x] UserService implementation (registration, login, get user)
+- [x] InvitationService implementation (create, accept, decline, cleanup)
+- [x] GameService updates for turn-based gameplay
+- [x] JWT Claims structure with user_id
+- [x] Configuration with invitation timeouts
+- [x] Error handling for new error types
+- [x] Middleware updates (rate limiting with user_id)
+- [x] Full workspace compilation
+
+#### ⏸️ Pending
+- [ ] REST API handlers for user registration/login
+- [ ] REST API handlers for invitations (create, list, accept, decline)
+- [ ] REST API handlers for turn-based actions
+- [ ] Comprehensive tests (25+ tests per PRD)
+- [ ] Postman collection updates
+- [ ] Full API documentation
+
+### Technical Decisions
+
+#### Password Security
+- Currently uses placeholder hashing: `"placeholder_hash_{password}"`
+- **Production TODO**: Implement proper password hashing (bcrypt, argon2)
+
+#### Turn Management
+- Automatic turn advancement when player stands or busts
+- Game auto-finishes when all players are standing/busted
+- Turns skip inactive players automatically
+
+#### Invitation Timeout
+- Server-enforced maximum timeout (1 hour)
+- Client can request shorter timeouts
+- Expired invitations cleaned up on query
+
+### Next Steps
+
+See [docs/postman/M7_CHANGES.md](docs/postman/M7_CHANGES.md) for detailed implementation status and the complete list of pending API handlers.
+
+---
 
 ## Docker Deployment
 
