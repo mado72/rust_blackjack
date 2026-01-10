@@ -69,34 +69,31 @@ pub enum InvitationStatus {
 pub struct GameInvitation {
     pub id: Uuid,
     pub game_id: Uuid,
-    pub inviter_email: String,
+    pub inviter_id: Uuid,
     pub invitee_email: String,
     pub status: InvitationStatus,
-    pub timeout_seconds: u64,
     pub created_at: String,
     pub expires_at: String,
 }
 
 impl GameInvitation {
-    /// Creates a new game invitation
+    /// Creates a new game invitation with expiration based on game's enrollment timeout
     pub fn new(
         game_id: Uuid,
-        inviter_email: String,
+        inviter_id: Uuid,
         invitee_email: String,
-        timeout_seconds: u64,
+        game_enrollment_expires_at: String,
     ) -> Self {
         let created_at = chrono::Utc::now();
-        let expires_at = created_at + chrono::Duration::seconds(timeout_seconds as i64);
 
         Self {
             id: Uuid::new_v4(),
             game_id,
-            inviter_email,
+            inviter_id,
             invitee_email,
             status: InvitationStatus::Pending,
-            timeout_seconds,
             created_at: created_at.to_rfc3339(),
-            expires_at: expires_at.to_rfc3339(),
+            expires_at: game_enrollment_expires_at,
         }
     }
 
@@ -234,28 +231,16 @@ pub struct Game {
     pub finished: bool,
     pub turn_order: Vec<String>,
     pub current_turn_index: usize,
+    pub enrollment_timeout_seconds: u64,
+    pub enrollment_start_time: String,
+    pub enrollment_closed: bool,
 }
 
 impl Game {
-    /// Creates a new game with the specified creator and initial players
+    /// Creates a new game starting only with the creator (enrollment lobby)
+    /// Players join via enrollment, not via initial construction
     #[tracing::instrument]
-    pub fn new(creator_id: Uuid, player_emails: Vec<String>) -> Result<Self, GameError> {
-        // Validate player count (1-10)
-        if player_emails.is_empty() || player_emails.len() > 10 {
-            return Err(GameError::InvalidPlayerCount);
-        }
-
-        // Validate emails are non-empty and unique
-        let mut seen_emails = std::collections::HashSet::new();
-        for email in &player_emails {
-            if email.trim().is_empty() {
-                return Err(GameError::InvalidEmail);
-            }
-            if !seen_emails.insert(email.clone()) {
-                return Err(GameError::InvalidEmail);
-            }
-        }
-
+    pub fn new(creator_id: Uuid, enrollment_timeout_seconds: u64) -> Result<Self, GameError> {
         // Initialize 52-card deck (4 of each card type across 4 suits)
         let mut available_cards = Vec::new();
         for suit in SUITS.iter() {
@@ -269,14 +254,9 @@ impl Game {
             }
         }
 
-        // Initialize players
-        let mut players = HashMap::new();
-        for email in &player_emails {
-            players.insert(email.clone(), Player::new(email.clone()));
-        }
-
-        // Set turn order
-        let turn_order = player_emails;
+        // Start with empty players - will be populated during enrollment phase
+        let players = HashMap::new();
+        let turn_order = Vec::new();
 
         Ok(Self {
             id: Uuid::new_v4(),
@@ -286,6 +266,9 @@ impl Game {
             finished: false,
             turn_order,
             current_turn_index: 0,
+            enrollment_timeout_seconds,
+            enrollment_start_time: chrono::Utc::now().to_rfc3339(),
+            enrollment_closed: false,
         })
     }
 
@@ -338,6 +321,15 @@ impl Game {
             return Err(GameError::GameAlreadyFinished);
         }
 
+        if self.enrollment_closed {
+            return Err(GameError::InvalidPlayerCount);
+        }
+
+        // Validate email is not empty
+        if email.trim().is_empty() {
+            return Err(GameError::InvalidEmail);
+        }
+
         if self.players.contains_key(&email) {
             return Err(GameError::InvalidEmail);
         }
@@ -350,6 +342,67 @@ impl Game {
         self.turn_order.push(email);
 
         Ok(())
+    }
+
+    /// Checks if enrollment is still open (not closed and timeout not exceeded)
+    pub fn is_enrollment_open(&self) -> bool {
+        if self.enrollment_closed {
+            return false;
+        }
+
+        if let Ok(start_time) = chrono::DateTime::parse_from_rfc3339(&self.enrollment_start_time) {
+            let now = chrono::Utc::now();
+            let start_time_utc = start_time.with_timezone(&chrono::Utc);
+            let elapsed = (now - start_time_utc).num_seconds();
+            return elapsed < self.enrollment_timeout_seconds as i64;
+        }
+
+        false
+    }
+
+    /// Checks if can enroll (space available and enrollment is open)
+    pub fn can_enroll(&self) -> bool {
+        self.is_enrollment_open() && self.players.len() < 10
+    }
+
+    /// Closes enrollment and finalizes turn order
+    pub fn close_enrollment(&mut self) -> Result<(), GameError> {
+        if self.finished {
+            return Err(GameError::GameAlreadyFinished);
+        }
+
+        self.enrollment_closed = true;
+
+        // Reset turn index to start
+        self.current_turn_index = 0;
+
+        Ok(())
+    }
+
+    /// Gets the enrollment expiration time
+    pub fn get_enrollment_expires_at(&self) -> String {
+        if let Ok(start_time) = chrono::DateTime::parse_from_rfc3339(&self.enrollment_start_time) {
+            let expires_at = start_time + chrono::Duration::seconds(self.enrollment_timeout_seconds as i64);
+            return expires_at.to_rfc3339();
+        }
+        String::new()
+    }
+
+    /// Gets the time remaining for enrollment in seconds
+    pub fn get_enrollment_time_remaining(&self) -> i64 {
+        if self.enrollment_closed {
+            return 0;
+        }
+
+        if let Ok(start_time) = chrono::DateTime::parse_from_rfc3339(&self.enrollment_start_time) {
+            let now = chrono::Utc::now();
+            let start_time_utc = start_time.with_timezone(&chrono::Utc);
+            let elapsed = (now - start_time_utc).num_seconds();
+            let remaining = self.enrollment_timeout_seconds as i64 - elapsed;
+            return std::cmp::max(0, remaining);
+        }
+
+        0
     }
 
     /// Gets the email of the player whose turn it is
@@ -386,8 +439,12 @@ impl Game {
         }
     }
 
-    /// Checks if the specified player can act (it's their turn and they're active)
+    /// Checks if the specified player can act (it's their turn and they're active and enrollment is closed)
     pub fn can_player_act(&self, email: &str) -> bool {
+        if !self.enrollment_closed {
+            return false;
+        }
+
         if let Some(current_email) = self.get_current_player() {
             if current_email == email {
                 if let Some(player) = self.players.get(email) {
