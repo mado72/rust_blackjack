@@ -19,6 +19,10 @@ pub enum GameError {
     PlayerAlreadyBusted,
     #[error("Invalid player count (must be between {min} and {max}, got {provided})")]
     InvalidPlayerCount { min: u8, max: u8, provided: usize },
+    #[error("Game is full")]
+    GameFull,
+    #[error("Enrollment is closed")]
+    EnrollmentClosed,
     #[error("Invalid email: {0}")]
     InvalidEmail(String),
     #[error("No more cards in the deck")]
@@ -154,6 +158,18 @@ pub struct GameStateResponse {
     pub turn_order: Vec<String>,
 }
 
+/// Information about a game in enrollment phase
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GameInfo {
+    pub game_id: Uuid,
+    pub creator_id: Uuid,
+    pub enrolled_count: u64,
+    pub max_players: u64,
+    pub enrollment_timeout_seconds: u64,
+    pub time_remaining_seconds: i64,
+    pub enrollment_closes_at: String,
+}
+
 /// Information about an invitation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InvitationInfo {
@@ -252,6 +268,7 @@ impl Default for UserService {
 /// Invitation management service
 pub struct InvitationService {
     invitations: Arc<Mutex<HashMap<Uuid, GameInvitation>>>,
+    #[allow(dead_code)]
     config: InvitationConfig,
 }
 
@@ -264,25 +281,16 @@ impl InvitationService {
         }
     }
 
-    /// Creates a new game invitation
+    /// Creates a new game invitation using the game's enrollment expiration time
     #[tracing::instrument(skip(self))]
     pub fn create(
         &self,
         game_id: Uuid,
-        inviter_email: String,
+        inviter_id: Uuid,
         invitee_email: String,
-        timeout_seconds: Option<u64>,
+        game_enrollment_expires_at: String,
     ) -> Result<Uuid, GameError> {
-        let timeout = timeout_seconds.unwrap_or(self.config.default_timeout_seconds);
-
-        // Validate timeout doesn't exceed max
-        if timeout > self.config.max_timeout_seconds {
-            return Err(GameError::InvalidTimeout {
-                max: self.config.max_timeout_seconds,
-            });
-        }
-
-        let invitation = GameInvitation::new(game_id, inviter_email, invitee_email, timeout);
+        let invitation = GameInvitation::new(game_id, inviter_id, invitee_email, game_enrollment_expires_at);
         let invitation_id = invitation.id;
 
         let mut invitations = self.invitations.lock().unwrap();
@@ -291,7 +299,6 @@ impl InvitationService {
         tracing::info!(
             invitation_id = %invitation_id,
             game_id = %game_id,
-            timeout_seconds = timeout,
             "Invitation created"
         );
 
@@ -357,10 +364,10 @@ impl InvitationService {
                     Some(InvitationInfo {
                         id: inv.id,
                         game_id: inv.game_id,
-                        inviter_email: inv.inviter_email.clone(),
+                        inviter_email: inv.inviter_id.to_string(), // Use inviter_id but convert to string
                         invitee_email: inv.invitee_email.clone(),
                         status: format!("{:?}", inv.status).to_lowercase(),
-                        timeout_seconds: inv.timeout_seconds,
+                        timeout_seconds: 0, // No longer stored; calculated from game enrollment
                         expires_at: inv.expires_at.clone(),
                         expires_in_seconds: expires_in,
                     })
@@ -420,30 +427,119 @@ impl GameService {
         Self::new(ServiceConfig::default())
     }
 
-    /// Creates a new game with the specified creator
+    /// Creates a new game with the specified creator and enrollment timeout
     #[tracing::instrument(skip(self), fields(game_id))]
-    pub fn create_game(&self, creator_id: Uuid, emails: Vec<String>) -> Result<Uuid, GameError> {
-        // Validate player count against configuration
-        let player_count = emails.len();
-        if player_count < self.config.min_players as usize || player_count > self.config.max_players as usize {
-            return Err(GameError::InvalidPlayerCount {
-                min: self.config.min_players,
-                max: self.config.max_players,
-                provided: player_count,
-            });
-        }
+    pub fn create_game(&self, creator_id: Uuid, enrollment_timeout_seconds: Option<u64>) -> Result<Uuid, GameError> {
+        // Use provided timeout or default to 300 seconds
+        let timeout = enrollment_timeout_seconds.unwrap_or(300);
 
-        // Create the game
-        let game = Game::new(creator_id, emails)?;
+        // Create game with just the creator, no initial players
+        let game = Game::new(creator_id, timeout)?;
         let game_id = game.id;
 
         // Store the game
         let mut games = self.games.lock().unwrap();
         games.insert(game_id, game);
 
-        tracing::info!(game_id = %game_id, creator_id = %creator_id, player_count = player_count, "Game created");
+        tracing::info!(game_id = %game_id, creator_id = %creator_id, enrollment_timeout_seconds = timeout, "Game created");
 
         Ok(game_id)
+    }
+
+    /// Lists all open games (in enrollment phase)
+    pub fn get_open_games(&self, exclude_user_id: Option<Uuid>) -> Result<Vec<GameInfo>, GameError> {
+        let games = self.games.lock().unwrap();
+        let now = chrono::Utc::now();
+
+        let _ = exclude_user_id; // Reserved for future use when user-game relationship exists
+
+        let open_games = games
+            .values()
+            .filter(|game| {
+                // Game must be in enrollment phase and not finished
+                if game.finished {
+                    return false;
+                }
+
+                // Check if enrollment is still open
+                if !game.is_enrollment_open() {
+                    return false;
+                }
+
+                true
+            })
+            .map(|game| {
+                let expires_at = game.get_enrollment_expires_at();
+                let expires_at_parsed = chrono::DateTime::parse_from_rfc3339(&expires_at).ok();
+                let _expires_in = expires_at_parsed
+                    .map(|dt| (dt.with_timezone(&chrono::Utc) - now).num_seconds())
+                    .unwrap_or(0);
+
+                GameInfo {
+                    game_id: game.id,
+                    creator_id: game.creator_id,
+                    enrolled_count: game.players.len() as u64,
+                    max_players: 10,
+                    enrollment_timeout_seconds: game.enrollment_timeout_seconds,
+                    time_remaining_seconds: game.get_enrollment_time_remaining(),
+                    enrollment_closes_at: expires_at.clone(),
+                }
+            })
+            .collect();
+
+        Ok(open_games)
+    }
+
+    /// Enrolls a player in a game
+    #[tracing::instrument(skip(self), fields(game_id, player_email))]
+    pub fn enroll_player(&self, game_id: Uuid, player_email: &str) -> Result<(), GameError> {
+        let mut games = self.games.lock().unwrap();
+        let game = games.get_mut(&game_id).ok_or(GameError::GameNotFound)?;
+
+        // Check if enrollment is open
+        if !game.is_enrollment_open() {
+            return Err(GameError::EnrollmentClosed);
+        }
+
+        // Check if game is full
+        if !game.can_enroll() {
+            return Err(GameError::GameFull);
+        }
+
+        // Add player
+        game.add_player(player_email.to_string())?;
+
+        tracing::info!(
+            game_id = %game_id,
+            player_email = player_email,
+            enrolled_count = game.players.len(),
+            "Player enrolled in game"
+        );
+
+        Ok(())
+    }
+
+    /// Closes enrollment for a game (only creator can do this)
+    #[tracing::instrument(skip(self), fields(game_id))]
+    pub fn close_enrollment(&self, game_id: Uuid, user_id: Uuid) -> Result<Vec<String>, GameError> {
+        let mut games = self.games.lock().unwrap();
+        let game = games.get_mut(&game_id).ok_or(GameError::GameNotFound)?;
+
+        // Check if user is the creator
+        if game.creator_id != user_id {
+            return Err(GameError::NotGameCreator);
+        }
+
+        game.close_enrollment()?;
+
+        tracing::info!(
+            game_id = %game_id,
+            enrolled_count = game.players.len(),
+            turn_order = ?game.turn_order,
+            "Enrollment closed"
+        );
+
+        Ok(game.turn_order.clone())
     }
 
     /// Draws a card for a player in a game
