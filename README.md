@@ -621,9 +621,31 @@ curl -s "http://localhost:8080/api/v1/games/$GAME_ID/results" \
 
 ## Milestone 7: Turn-Based Gameplay and User Management
 
-**Status**: Infrastructure Complete ✅ | API Handlers Pending ⏸️
+**Status**: Core & Service Complete ✅ | API Enrollment Endpoints Complete ✅ | Turn-Based Gameplay Pending ⏳
 
 The M7 implementation introduces turn-based multiplayer gameplay with user management and game invitations. This milestone adds sophisticated game flow control while maintaining backward compatibility with existing endpoints.
+
+### Phase 1: Enrollment Endpoints - COMPLETE ✅
+
+**Completed (Jan 10, 2026):**
+- ✅ `POST /api/v1/games` - Create game with enrollment timeout
+- ✅ `GET /api/v1/games/open` - List games in enrollment phase  
+- ✅ `POST /api/v1/games/:game_id/enroll` - Enroll player in game
+- ✅ `POST /api/v1/games/:game_id/close-enrollment` - Close enrollment and initialize turns
+
+All 4 endpoints are:
+- ✅ Fully implemented with comprehensive error handling
+- ✅ Integrated with JWT authentication
+- ✅ Wired to router in main.rs
+- ✅ End-to-end tested (78/78 tests passing)
+- ✅ Documented with examples
+
+**Key Features:**
+- **Game Creation**: Users create games with global enrollment timeout (default 300s)
+- **Open Games Discovery**: Authenticated users can view all games in enrollment phase
+- **Player Enrollment**: Add players during enrollment window with capacity validation (max 10)
+- **Enrollment Closure**: Creator manually closes enrollment to start turn-based play
+- **Turn Order Initialization**: Turn order randomized when enrollment closes
 
 ### Key Features
 
@@ -1151,16 +1173,28 @@ rust_blackjack/
 
 ### Development Roadmap
 
-See [PRD.md](docs/PRD.md) for the complete 6-milestone implementation plan:
+See [PRD.md](docs/PRD.md) for the complete implementation plan:
 
-1. **Milestone 1**: Workspace Configuration and CI/CD
-2. **Milestone 2**: Core Crate (game logic)
-3. **Milestone 3**: Service Crate (state management)
-4. **Milestone 4**: API Crate (authentication & config)
-5. **Milestone 5**: REST Endpoints & Health Checks
-6. **Milestone 6**: Tests, Documentation & Docker
+**Completed Milestones:**
+1. ✅ **Milestone 1**: Workspace Configuration and CI/CD
+2. ✅ **Milestone 2**: Core Crate (game logic)
+3. ✅ **Milestone 3**: Service Crate (state management)
+4. ✅ **Milestone 4**: API Crate (authentication & config)
+5. ✅ **Milestone 5**: REST Endpoints & Health Checks
+6. ✅ **Milestone 6**: Tests, Documentation & Docker
 
-**Status**: Currently in Planning Milestone (v1.0.0)
+**In Progress:**
+7. 🚧 **Milestone 7**: Turn-Based Gameplay and User Management
+   - ✅ Phase 1: Game Enrollment Endpoints (COMPLETE - Jan 10, 2026)
+   - ⏳ Phase 2A: Game Invitation Endpoints (Planned - 2h)
+   - ⏳ Phase 2B: Stand Endpoint (Planned - 1h)
+   - ⏳ Phase 3: PlayerState & Turn Management (Planned - 3h)
+   - ⏳ Phase 4: Additional Tests (Planned - 8h)
+
+**Planned:**
+8. ⏳ **Milestone 8**: User Account Management and Authentication
+
+**Status**: 78/78 tests passing | 346 lines of new handler code | All endpoints functional
 
 ## Contributing
 

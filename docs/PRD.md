@@ -8,7 +8,7 @@
 
 This document details the transformation of the CLI blackjack game into a production-ready REST backend system with versioned API, JWT authentication, multi-player game management (1-10 players per game), shared 52-card deck, ordered card history, flexible Ace value changes, rate limiting, structured logging, health checks, standardized errors, external configuration, and CI/CD pipeline. Milestone 7 implements a game lobby system where authenticated users can create games with a global enrollment timeout (300s default), view open games, enroll as players, and any enrolled player can invite others to join the same game_id.
 
-**Implementation Status: Milestones 1-6 Complete (100%) | Milestone 7 Planned | Milestone 8 Planned** 🚧
+**Implementation Status: Milestones 1-6 Complete (100%) | Milestone 7 In Progress (Enrollment 100%, Turn-Based Pending) | Milestone 8 Planned** 🚧
 
 ---
 
@@ -379,9 +379,10 @@ This document details the transformation of the CLI blackjack game into a produc
 
 ## Milestone 7: Game Lobbies, Player Enrollment and Turn-Based Gameplay
 
-**Status:** `in-progress` (Core & Service: 80% complete | API: 20% complete)  
+**Status:** `in-progress` (Core & Service: 100% complete | API: 100% complete - Enrollment phase)  
 **Dependencies:** Milestone 6  
-**Estimated Effort:** 16 hours
+**Estimated Effort:** 16 hours  
+**Progress:** ✅ PHASE 1 Complete - Enrollment Endpoints Wired and Functional (Jan 10, 2026)
 
 ### Overview
 
@@ -541,13 +542,31 @@ Implement a game lobby system where authenticated users create games with a glob
   - [ ] Implement `POST /api/v1/users/login` - Login user, return JWT token
   - [ ] Implement `POST /api/v1/users/logout` - Logout user
 
-- ⏳ **Game Management Endpoints** (partially complete - handlers written, routing incomplete)
-  - ⏳ `POST /api/v1/games` - Create new game
-    - [x] Handler written and tested ✅
-    - ⏳ Router not fully configured ❌
+- ✅ **Game Management Endpoints** (PHASE 1 Complete - All handlers wired and functional)
+  - ✅ `POST /api/v1/games` - Create new game
+    - [x] Handler written ✅
+    - [x] Router configured ✅
+    - [x] End-to-end tested ✅
     - Request: `{enrollment_timeout_seconds: Option<u64>}` (optional, default 300)
     - Response: `{game_id, message, player_count}`
-  - ⏳ `GET /api/v1/games/open` - Get list of open games
+  - ✅ `GET /api/v1/games/open` - Get list of open games
+    - [x] Handler written ✅
+    - [x] Router configured ✅
+    - [x] End-to-end tested ✅
+    - Response: `{games: [GameInfo], count: usize}`
+  - ✅ `POST /api/v1/games/:game_id/enroll` - Enroll player in game
+    - [x] Handler written ✅
+    - [x] Router configured ✅
+    - [x] End-to-end tested ✅
+    - Request: `{email: String}`
+    - Response: `{game_id, email, message, enrolled_count}`
+    - Error Handling: GameFull (409), EnrollmentClosed (410)
+  - ✅ `POST /api/v1/games/:game_id/close-enrollment` - Close enrollment
+    - [x] Handler written ✅
+    - [x] Router configured ✅
+    - [x] End-to-end tested ✅
+    - Response: `{game_id, message, turn_order, player_count}`
+    - Error Handling: NotGameCreator (403)
     - [x] Handler written ✅
     - ⏳ Router not configured ❌
     - Response: array of `GameInfo` with game_id, creator_id, enrolled_count, max_players (10), enrollment_timeout_seconds, time_remaining_seconds
