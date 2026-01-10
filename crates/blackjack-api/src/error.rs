@@ -267,6 +267,12 @@ impl From<blackjack_service::GameError> for ApiError {
             GameError::InvalidPlayerCount { min, max, provided } => {
                 Self::invalid_player_count(min, max, provided)
             }
+            GameError::GameFull => {
+                Self::new(StatusCode::BAD_REQUEST, "GAME_FULL", "Game is at maximum capacity (10 players)")
+            }
+            GameError::EnrollmentClosed => {
+                Self::new(StatusCode::GONE, "ENROLLMENT_CLOSED", "Enrollment for this game is closed")
+            }
             GameError::InvalidEmail(msg) => {
                 Self::new(StatusCode::BAD_REQUEST, "INVALID_EMAIL", msg)
             }
