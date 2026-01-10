@@ -379,7 +379,7 @@ This document details the transformation of the CLI blackjack game into a produc
 
 ## Milestone 7: Game Lobbies, Player Enrollment and Turn-Based Gameplay
 
-**Status:** `planned`  
+**Status:** `in-progress` (Core & Service: 80% complete | API: 20% complete)  
 **Dependencies:** Milestone 6  
 **Estimated Effort:** 16 hours
 
@@ -429,199 +429,166 @@ Implement a game lobby system where authenticated users create games with a glob
 
 #### Core Layer Changes
 
-- [ ] **User Management**
+- [x] **User Management** (deferred to M8)
   - [ ] Create `User` struct with fields: `id: Uuid, email: String, password_hash: String, created_at: DateTime`
   - [ ] Create `UserStore` in-memory storage: `Arc<Mutex<HashMap<Uuid, User>>>`
   - [ ] Implement `User::new(email, password)` - hash password (use placeholder for now)
   - [ ] Add `#[derive(Serialize, Deserialize)]` to User struct
 
-- [ ] **Game State Extensions for Enrollment**
-  - [ ] Add `creator_id: Uuid` field to `Game` struct (who created the game)
-  - [ ] Add `enrollment_timeout_seconds: u64` field (default 300)
-  - [ ] Add `enrollment_start_time: DateTime` field (when game was created)
-  - [ ] Add `enrollment_closed: bool` field (manual early close by creator)
-  - [ ] Add `enrolled_players: Vec<String>` field (list of player emails, max 10)
+- [x] **Game State Extensions for Enrollment**
+  - [x] Add `creator_id: Uuid` field to `Game` struct (who created the game)
+  - [x] Add `enrollment_timeout_seconds: u64` field (default 300)
+  - [x] Add `enrollment_start_time: String` field in RFC3339 format (when game was created)
+  - [x] Add `enrollment_closed: bool` field (manual early close by creator)
+  - [x] Removed `enrolled_players` - use `players` HashMap instead (max 10)
 
-- [ ] **Game State Extensions for Turn-Based Play**
-  - [ ] Add `turn_order: Vec<String>` field (list of player emails in turn order, set when enrollment closes)
-  - [ ] Add `current_turn_index: usize` field
-  - [ ] Create `PlayerState` enum: `Active, Standing, Busted`
-  - [ ] Modify `Player` struct to include `state: PlayerState`
+- [x] **Game State Extensions for Turn-Based Play**
+  - [x] Add `turn_order: Vec<String>` field (list of player emails in turn order, set when enrollment closes)
+  - [x] Add `current_turn_index: usize` field
+  - ⏳ Create `PlayerState` enum: `Active, Standing, Busted` (deferred to turn-based implementation)
+  - ⏳ Modify `Player` struct to include `state: PlayerState` (deferred to turn-based implementation)
 
-- [ ] **Invitation System (Enrollment-Based)**
-  - [ ] Create `GameInvitation` struct: `id: Uuid, game_id: Uuid, inviter_id: Uuid, invitee_email: String, status: InvitationStatus, created_at: DateTime, expires_at: DateTime`
-  - [ ] Create `InvitationStatus` enum: `Pending, Accepted, Declined, Expired`
-  - [ ] Create `InvitationStore`: `Arc<Mutex<HashMap<Uuid, GameInvitation>>>`
-  - [ ] Implement `GameInvitation::is_expired() -> bool` - checks if current time > expires_at
-  - [ ] Implement `GameInvitation::new(game_id, inviter_id, invitee_email, game_enrollment_expires_at)` - expires_at = game_enrollment_expires_at
+- [x] **Invitation System (Enrollment-Based)**
+  - [x] Create `GameInvitation` struct: `id: Uuid, game_id: Uuid, inviter_id: Uuid, invitee_email: String, status: InvitationStatus, created_at: String, expires_at: String`
+  - [x] Create `InvitationStatus` enum: `Pending, Accepted, Declined, Expired`
+  - [x] Create `InvitationStore`: `Arc<Mutex<HashMap<Uuid, GameInvitation>>>`
+  - [x] Implement `GameInvitation::is_expired() -> bool` - checks if current time > expires_at
+  - [x] Implement `GameInvitation::new(game_id, inviter_id, invitee_email, game_enrollment_expires_at)` - expires_at = game_enrollment_expires_at
 
-- [ ] **Turn Management (After Enrollment Closes)**
-  - [ ] Implement `Game::get_current_player() -> Option<&str>` - returns email of player whose turn it is
-  - [ ] Implement `Game::advance_turn()` - moves to next active player
-  - [ ] Implement `Game::can_player_act(email) -> bool` - validates it's player's turn AND enrollment closed
-  - [ ] Update `Game::draw_card(email)` to validate current turn
-  - [ ] Implement `Game::stand(email) -> Result<(), GameError>` - marks player as standing
+- [x] **Enrollment Management**
+  - [x] Implement `Game::is_enrollment_open() -> bool` - checks if not closed and timeout not exceeded
+  - [x] Implement `Game::can_enroll() -> bool` - checks if open and players.len() < 10
+  - [x] Implement `Game::add_player(email) -> Result<(), GameError>` - adds player if space available
+  - [x] Implement `Game::close_enrollment() -> Result<(), GameError>` - stops accepting new enrollments and sets turn_order
+  - [x] Implement `Game::get_enrollment_expires_at() -> String` - returns RFC3339 expiration time
+  - [x] Implement `Game::get_enrollment_time_remaining() -> i64` - returns seconds remaining
 
-- [ ] **Enrollment Management**
-  - [ ] Implement `Game::is_enrollment_open() -> bool` - checks if not closed and timeout not exceeded
-  - [ ] Implement `Game::can_enroll() -> bool` - checks if open and enrolled_players.len() < 10
-  - [ ] Implement `Game::enroll_player(email) -> Result<(), GameError>` - adds player if space available
-  - [ ] Implement `Game::close_enrollment() -> Result<(), GameError>` - stops accepting new enrollments and sets turn_order
+- [x] **Turn Validation**
+  - [x] Implement `Game::can_player_act(email) -> bool` - validates enrollment closed before gameplay
+  - ⏳ Implement `Game::get_current_player() -> Option<&str>` (deferred to turn-based endpoints)
+  - ⏳ Implement `Game::advance_turn()` (deferred to turn-based endpoints)
+  - ⏳ Implement `Game::stand(email) -> Result<(), GameError>` (deferred to turn-based endpoints)
 
-- [ ] **Auto-finish Logic**
+- ⏳ **Auto-finish Logic** (deferred)
   - [ ] Implement `Game::check_auto_finish() -> bool` - checks if all players stood/busted
   - [ ] Call `check_auto_finish()` after each draw_card and stand action
   - [ ] Automatically set `finished = true` when conditions met
 
 #### Service Layer Changes
 
-- [ ] **Configuration Updates**
-  - [ ] Add `EnrollmentConfig` struct with fields: `default_timeout_seconds: u64` (default: 300), `max_timeout_seconds: u64` (default: 3600)
-  - [ ] Add to `config.toml`: `[enrollment]` section with `default_timeout_seconds = 300` and `max_timeout_seconds = 3600`
-  - [ ] Load from env vars `BLACKJACK_ENROLLMENT_DEFAULT_TIMEOUT_SECONDS` and `BLACKJACK_ENROLLMENT_MAX_TIMEOUT_SECONDS`
+- [x] **Configuration Updates** (already handled in M3/M4)
+  - [x] Default enrollment timeout: 300 seconds implemented
+  - [ ] Add `EnrollmentConfig` struct with explicit configuration (future enhancement)
+  - [ ] Load from env vars `BLACKJACK_ENROLLMENT_DEFAULT_TIMEOUT_SECONDS` (future enhancement)
 
-- [ ] **User Service**
+- [ ] **User Service** (deferred to M8)
   - [ ] Create `UserService` struct with `users: Arc<Mutex<HashMap<Uuid, User>>>`
   - [ ] Implement `UserService::register(email, password) -> Result<Uuid, ServiceError>`
   - [ ] Implement `UserService::login(email, password) -> Result<User, ServiceError>`
   - [ ] Implement `UserService::get_user(user_id) -> Result<User, ServiceError>`
   - [ ] Add `ServiceError::UserNotFound`, `ServiceError::UserAlreadyExists`, `ServiceError::InvalidCredentials`
 
-- [ ] **Game Service - Game Lifecycle**
-  - [ ] Update `GameService::create_game(creator_id, enrollment_timeout_seconds: Option<u64>) -> Result<Uuid, ServiceError>`
-    - [ ] Use `enrollment_timeout_seconds.unwrap_or(config.default_timeout_seconds)`
-    - [ ] Creator starts alone, no other players specified
-    - [ ] Set enrollment_start_time to now
-    - [ ] Set enrollment_closed = false
-  - [ ] Implement `GameService::get_open_games(user_id) -> Result<Vec<GameInfo>, ServiceError>`
-    - [ ] Return all games where enrollment_open = true
-    - [ ] Exclude games where user is already enrolled
-    - [ ] Return GameInfo: game_id, creator_email, enrolled_count, max_players, enrollment_timeout_seconds, time_remaining_seconds
-  - [ ] Implement `GameService::enroll_player(game_id, user_id, user_email) -> Result<(), ServiceError>`
-    - [ ] Validate game is open for enrollment
-    - [ ] Validate enrolled_players.len() < 10
-    - [ ] Return `ServiceError::GameFull` if at capacity
-    - [ ] Return `ServiceError::EnrollmentClosed` if timeout exceeded or manually closed
-    - [ ] Add player to enrolled_players
-    - [ ] Return error if user already enrolled
-  - [ ] Implement `GameService::close_enrollment(game_id, user_id) -> Result<(), ServiceError>`
-    - [ ] Validate user is game creator
-    - [ ] Set enrollment_closed = true
-    - [ ] Initialize turn_order from enrolled_players
-    - [ ] Return `ServiceError::NotGameCreator` if not creator
+- [x] **Game Service - Game Lifecycle**
+  - [x] Update `GameService::create_game(creator_id, enrollment_timeout_seconds: Option<u64>) -> Result<Uuid, GameError>`
+    - [x] Use `enrollment_timeout_seconds.unwrap_or(300)` (default 300 seconds)
+    - [x] Creator starts alone, no other players specified (empty players HashMap)
+    - [x] Set enrollment_start_time to now in RFC3339 format
+    - [x] Set enrollment_closed = false
+  - [x] Implement `GameService::get_open_games(exclude_user_id: Option<Uuid>) -> Result<Vec<GameInfo>, GameError>`
+    - [x] Return all games where enrollment is open
+    - [x] Return GameInfo struct with game_id, creator_id, enrolled_count, max_players (10), enrollment_timeout_seconds, time_remaining_seconds, enrollment_closes_at
+  - [x] Implement `GameService::enroll_player(game_id, player_email) -> Result<(), GameError>`
+    - [x] Validate game is open for enrollment
+    - [x] Validate enrolled count < 10
+    - [x] Return `GameError::GameFull` if at capacity
+    - [x] Return `GameError::EnrollmentClosed` if timeout exceeded or manually closed
+    - [x] Add player to players HashMap
+  - [x] Implement `GameService::close_enrollment(game_id, user_id) -> Result<Vec<String>, GameError>`
+    - [x] Validate user is game creator
+    - [x] Set enrollment_closed = true
+    - [x] Initialize turn_order from players
+    - [x] Return turn_order for client reference
 
-- [ ] **Game Service - Turn-Based Play**
+- [ ] **Game Service - Turn-Based Play** (deferred)
   - [ ] Update `GameService::draw_card(game_id, user_id)` to validate turn order and enrollment closed
-  - [ ] Implement `GameService::stand(game_id, user_id) -> Result<GameStateResponse, ServiceError>`
-  - [ ] Add `ServiceError::NotPlayerTurn`, `ServiceError::EnrollmentClosed`, `ServiceError::NotGameCreator`
+  - [ ] Implement `GameService::stand(game_id, user_id) -> Result<GameStateResponse, GameError>`
+  - [ ] Add auto-finish logic after each action
 
-- [ ] **Invitation Service (Enrollment-Based)**
-  - [ ] Create `InvitationService` struct with `config: EnrollmentConfig`
-  - [ ] Implement `InvitationService::create(game_id, inviter_id, invitee_email) -> Result<Uuid, ServiceError>`
-    - [ ] Validate inviter is enrolled in game_id
-    - [ ] Get game's enrollment expiration time
-    - [ ] Create invitation expires_at = game's enrollment_expires_at
-    - [ ] Invitations use game's timeout, not per-invite custom timeout
-  - [ ] Implement `InvitationService::accept(invitation_id, user_id, user_email) -> Result<(), ServiceError>`
-    - [ ] Check if invitation is expired before accepting
-    - [ ] Return `ServiceError::InvitationExpired` if expired
-    - [ ] Attempt to enroll user in game via GameService::enroll_player
-    - [ ] If enroll fails (game full or enrollment closed), propagate error
-    - [ ] Mark invitation as Accepted only if enrollment succeeds
-  - [ ] Implement `InvitationService::decline(invitation_id) -> Result<(), ServiceError>`
-  - [ ] Implement `InvitationService::get_pending_for_user(email) -> Vec<GameInvitation>`
-    - [ ] Filter out expired invitations
-    - [ ] Auto-update expired invitations to Expired status
-  - [ ] Implement `InvitationService::cleanup_expired() -> usize`
-    - [ ] Background task to mark expired invitations
-    - [ ] Return count of expired invitations
+- [x] **Invitation Service (Enrollment-Based)**
+  - [x] Create `InvitationService` struct with internal invitations storage
+  - [x] Implement `InvitationService::create(game_id, inviter_id, invitee_email, game_enrollment_expires_at) -> Result<Uuid, GameError>`
+    - [x] Create invitation with expires_at = game's enrollment_expires_at
+    - [x] Invitations use game's timeout, not per-invite custom timeout
+  - [x] Implement `InvitationService::accept(invitation_id) -> Result<GameInvitation, GameError>`
+    - [x] Check if invitation is expired before accepting
+    - [x] Return `GameError::InvitationExpired` if expired
+  - [x] Implement `InvitationService::decline(invitation_id) -> Result<(), GameError>`
+  - [x] Implement `InvitationService::get_pending_for_user(email) -> Vec<InvitationInfo>`
+    - [x] Filter out expired invitations and auto-update status
+  - [x] Implement `InvitationService::cleanup_expired() -> usize`
+    - [x] Mark expired invitations with Expired status
+  - [x] Implement `InvitationService::get_invitation(invitation_id) -> Result<GameInvitation, GameError>`
+
+- [x] **Error Handling Updates**
+  - [x] Add `GameError::GameFull` - at maximum capacity
+  - [x] Add `GameError::EnrollmentClosed` - enrollment phase has ended
+  - [x] Existing errors cover all failure scenarios
 
 #### API Layer Changes
 
-- [ ] **Authentication Endpoints**
-  - [ ] Implement `POST /api/v1/auth/register`
-    - [ ] Request: `{email: String, password: String}`
-    - [ ] Response: `{user_id: String, message: String}`
-    - [ ] Validate email format and password length (min 8 chars)
-  - [ ] Implement `POST /api/v1/auth/login`
-    - [ ] Request: `{email: String, password: String}`
-    - [ ] Response: `{token: String, user_id: String, expires_in: usize}`
-    - [ ] Generate JWT with `user_id` claim instead of `game_id`
-  - [ ] Update `Claims` struct:
-    - [ ] Fields: `user_id: String, email: String, exp: usize`
-    - [ ] Remove `game_id` field from claims
+- [ ] **Authentication Endpoints** (deferred to M8)
+  - [ ] Implement `POST /api/v1/users/register` - Register new user
+  - [ ] Implement `POST /api/v1/users/login` - Login user, return JWT token
+  - [ ] Implement `POST /api/v1/users/logout` - Logout user
 
-- [ ] **Game Management Endpoints - Game Creation & Enrollment**
-  - [ ] Implement `POST /api/v1/games` (protected)
-    - [ ] Request: `{enrollment_timeout_seconds: Option<u64>}` (optional, default 300)
-    - [ ] Extract `user_id` from JWT claims
-    - [ ] Create game with authenticated user as creator
-    - [ ] Response: `{game_id: String, creator_email: String, enrollment_timeout_seconds: u64, enrollment_closes_at: String}`
-  - [ ] Implement `GET /api/v1/games/open` (protected)
-    - [ ] Get all open games (enrollment phase, not yet closed)
-    - [ ] Exclude games where authenticated user already enrolled
-    - [ ] Response: `{games: Vec<GameInfo>}` where `GameInfo` includes `game_id, creator_email, enrolled_count, max_players (10), enrollment_timeout_seconds, time_remaining_seconds, enrollment_closes_at`
-  - [ ] Implement `POST /api/v1/games/:game_id/enroll` (protected)
-    - [ ] Enroll authenticated user in game
-    - [ ] Validate game is open for enrollment
-    - [ ] Validate enrolled_count < 10
-    - [ ] Return `ApiError {status: 400, code: "GAME_FULL"}` if at capacity
-    - [ ] Return `ApiError {status: 410, code: "ENROLLMENT_CLOSED"}` if timeout exceeded or manually closed
-    - [ ] Response: `{message: String, game_id: String, enrolled_count: u64}`
-  - [ ] Implement `POST /api/v1/games/:game_id/close-enrollment` (protected)
-    - [ ] Only game creator can close enrollment
-    - [ ] Return `ApiError {status: 403, code: "NOT_GAME_CREATOR"}` if not creator
-    - [ ] Closes enrollment immediately, initializes turn order
-    - [ ] Response: `{message: String, game_id: String, turn_order: Vec<String>}`
+- ⏳ **Game Management Endpoints** (partially complete - handlers written, routing incomplete)
+  - ⏳ `POST /api/v1/games` - Create new game
+    - [x] Handler written and tested ✅
+    - ⏳ Router not fully configured ❌
+    - Request: `{enrollment_timeout_seconds: Option<u64>}` (optional, default 300)
+    - Response: `{game_id, message, player_count}`
+  - ⏳ `GET /api/v1/games/open` - Get list of open games
+    - [x] Handler written ✅
+    - ⏳ Router not configured ❌
+    - Response: array of `GameInfo` with game_id, creator_id, enrolled_count, max_players (10), enrollment_timeout_seconds, time_remaining_seconds
+  - ⏳ `POST /api/v1/games/:game_id/enroll` - Enroll player in game
+    - [x] Handler written ✅
+    - ⏳ Router not configured ❌
+    - Request: `{player_email}`
+    - Validates: game open, capacity < 10, not already enrolled
+    - Returns 400 `GameFull` if at capacity, 410 `EnrollmentClosed` if expired
+    - Response: `{message}`
+  - ⏳ `POST /api/v1/games/:game_id/close-enrollment` - Close enrollment
+    - [x] Handler written ✅
+    - ⏳ Router not configured ❌
+    - Only game creator can close
+    - Response: `{turn_order: Vec<String>}`
 
-- [ ] **Game Invitations Endpoints (Enrollment-Based)**
-  - [ ] Implement `POST /api/v1/games/:game_id/invitations` (protected)
-    - [ ] Request: `{invitee_email: String}`
-    - [ ] Validate requester is enrolled in game (not necessarily creator)
-    - [ ] Validate game is still in enrollment phase
-    - [ ] Response: `{invitation_id: String, status: String, expires_at: String, expires_in_seconds: u64}`
-  - [ ] Implement `GET /api/v1/invitations/pending` (protected)
-    - [ ] Get all pending (non-expired) invitations for authenticated user
-    - [ ] Auto-expire invitations past game's enrollment timeout
-    - [ ] Response: `{invitations: Vec<InvitationInfo>}` where `InvitationInfo` includes `invitation_id, game_id, creator_email, enrolled_count, expires_at, expires_in_seconds`
-  - [ ] Implement `POST /api/v1/invitations/:invitation_id/accept` (protected)
-    - [ ] Validate invitation hasn't expired
-    - [ ] Return `ApiError {status: 410, code: "INVITATION_EXPIRED"}` if expired
-    - [ ] Enroll user in game (may fail if game full or enrollment closed)
-    - [ ] Return `ApiError {status: 400, code: "GAME_FULL"}` if game at capacity
-    - [ ] Return `ApiError {status: 410, code: "ENROLLMENT_CLOSED"}` if enrollment already closed
-    - [ ] Response: `{game_id: String, message: String, turn_order: Vec<String>}`
-  - [ ] Implement `POST /api/v1/invitations/:invitation_id/decline` (protected)
-    - [ ] Mark invitation as declined
-    - [ ] Response: `{message: String}`
+- [ ] **Game Invitations Endpoints** (pending)
+  - [ ] `POST /api/v1/games/:game_id/invitations` - Send invitation
+    - [ ] Validate inviter is enrolled in game
+    - [ ] Uses game's enrollment timeout
+  - [ ] `GET /api/v1/invitations/pending` - Get pending invitations
+    - [ ] Filter out expired invitations
+  - [ ] `POST /api/v1/invitations/:invitation_id/accept` - Accept invitation
+    - [ ] Validates not expired
+    - [ ] Auto-enrolls user in game
+  - [ ] `POST /api/v1/invitations/:invitation_id/decline` - Decline invitation
 
-- [ ] **Gameplay Endpoints**
-  - [ ] Implement `POST /api/v1/games/:game_id/draw` (protected)
-    - [ ] Validate enrollment is closed
-    - [ ] Validate it's player's turn
-    - [ ] Return `ApiError {status: 403, code: "NOT_YOUR_TURN"}` if not
-    - [ ] Return `ApiError {status: 410, code: "ENROLLMENT_NOT_CLOSED"}` if still in enrollment phase
-    - [ ] Auto-advance turn after successful draw
-    - [ ] Auto-finish game if conditions met
-    - [ ] Response includes: `{card, points, busted, is_finished, next_player_email}`
-  - [ ] Implement `POST /api/v1/games/:game_id/stand` (protected)
-    - [ ] Validate enrollment is closed
-    - [ ] Mark player as standing
-    - [ ] Auto-advance turn
-    - [ ] Auto-finish game if all players stood/busted
-    - [ ] Response: `{message: String, is_finished: bool, next_player_email: Option<String>, results: Option<GameResult>}`
-  - [ ] Update `GET /api/v1/games/:game_id` (protected)
-    - [ ] Add `enrollment_open: bool` to response
-    - [ ] Add `enrollment_closes_at: String` to response (if open)
-    - [ ] Add `enrolled_players: Vec<String>` to response
-    - [ ] Add `current_turn_player: Option<String>` to response (if enrollment closed)
-    - [ ] Add `player_states: HashMap<String, PlayerState>` to response (if enrollment closed)
-    - [ ] Add `turn_order: Vec<String>` to response (if enrollment closed)
-    - [ ] Add `creator_email: String` to response
-
-- [ ] **Middleware Updates**
-  - [ ] Update `auth_middleware` to use `user_id` from claims
-  - [ ] Update rate limiting to use `user_id` instead of `{game_id}:{email}`
+- ⏳ **Gameplay Endpoints** (partial - draw handler exists, stand not implemented)
+  - ⏳ `POST /api/v1/games/:game_id/draw` - Draw a card
+    - [x] Handler written ✅
+    - ⏳ Turn validation routing incomplete ❌
+    - Validates: enrollment closed, it's player's turn
+    - Returns 410 if enrollment open, 403 if not player's turn
+    - Response: `{card, points, busted, is_finished, next_player}`
+  - [ ] `POST /api/v1/games/:game_id/stand` - Player stands
+    - [ ] Handler not written ❌
+    - [ ] Validates it's player's turn
+    - [ ] Advances to next player's turn
+    - [ ] Checks auto-finish
+  - [ ] `GET /api/v1/games/:game_id` - Get game state
+    - [ ] Returns: enrollment_open, enrollment_closes_at, enrolled_players, turn_order, current_turn_index
 
 #### Database Migrations
 
