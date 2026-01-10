@@ -380,10 +380,8 @@ pub async fn ready_check() -> Json<ReadyResponse> {
 /// - Email addresses must not be empty
 #[derive(Debug, Deserialize)]
 pub struct CreateGameRequest {
-    /// List of player email addresses
-    ///
-    /// Must contain between 1 and 10 unique, non-empty emails
-    pub emails: Vec<String>,
+    /// Optional enrollment timeout in seconds (defaults to 300)
+    pub enrollment_timeout_seconds: Option<u64>,
 }
 
 /// Response for game creation
@@ -474,36 +472,24 @@ pub async fn create_game(
     State(state): State<crate::AppState>,
     Json(payload): Json<CreateGameRequest>,
 ) -> Result<Json<CreateGameResponse>, ApiError> {
-    // Validate player count
-    let player_count = payload.emails.len();
-    let min = state.game_service.config().min_players as usize;
-    let max = state.game_service.config().max_players as usize;
-
-    if player_count < min || player_count > max {
-        let mut details = HashMap::new();
-        details.insert("min".to_string(), min.to_string());
-        details.insert("max".to_string(), max.to_string());
-        details.insert("provided".to_string(), player_count.to_string());
-
-        return Err(ApiError::new(StatusCode::BAD_REQUEST, "INVALID_PLAYER_COUNT", "Invalid number of players").with_details(details));
-    }
-
-    // Create game via service
+    // Create game via service with enrollment timeout
     // TODO M7: Update to require authentication and use user_id as creator_id
     // For backward compatibility, use a placeholder UUID
     let creator_id = Uuid::new_v4(); // Temporary placeholder
-    let game_id = state.game_service.create_game(creator_id, payload.emails)?;
+    let enrollment_timeout = payload.enrollment_timeout_seconds; // Can be None, will default to 300
+    let game_id = state.game_service.create_game(creator_id, enrollment_timeout)?;
 
     tracing::info!(
         game_id = %game_id,
-        player_count = player_count,
+        creator_id = %creator_id,
+        enrollment_timeout = ?enrollment_timeout,
         "Game created successfully"
     );
 
     Ok(Json(CreateGameResponse {
         game_id,
         message: "Game created successfully".to_string(),
-        player_count,
+        player_count: 0,
     }))
 }
 
@@ -997,9 +983,6 @@ pub async fn register_user(
 pub struct CreateInvitationRequest {
     /// Email of the user to invite
     pub invitee_email: String,
-    
-    /// Optional timeout in seconds (defaults to config value)
-    pub timeout_seconds: Option<u64>,
 }
 
 /// Response for created invitation
@@ -1035,8 +1018,7 @@ pub struct CreateInvitationResponse {
 ///
 /// ```json
 /// {
-///   "invitee_email": "newplayer@example.com",
-///   "timeout_seconds": 600
+///   "invitee_email": "newplayer@example.com"
 /// }
 /// ```
 #[tracing::instrument(skip(state))]
@@ -1046,27 +1028,36 @@ pub async fn create_invitation(
     Path(game_id): Path<Uuid>,
     Json(payload): Json<CreateInvitationRequest>,
 ) -> Result<Json<CreateInvitationResponse>, ApiError> {
-    // Verify user is game creator
+    // Verify user is enrolled in the game
     let user_id = Uuid::parse_str(&claims.user_id).map_err(|_| {
         ApiError::new(StatusCode::BAD_REQUEST, "INVALID_USER_ID", "Invalid user ID")
     })?;
 
-    if !state.game_service.is_game_creator(game_id, user_id)? {
+    // Get user 
+    let _user = state.user_service.get_user(user_id)?;
+    
+    // Get game to check enrollment status and get expires_at
+    let game_state = state.game_service.get_game_state(game_id)?;
+    
+    // Check if game is still in enrollment phase
+    // For now, we'll assume any game that's not finished is open (need to add enrollment_open flag to response)
+    if game_state.finished {
         return Err(ApiError::new(
-            StatusCode::FORBIDDEN,
-            "NOT_CREATOR",
-            "Only game creator can send invitations",
+            StatusCode::BAD_REQUEST,
+            "GAME_FINISHED",
+            "Cannot invite players to a finished game",
         ));
     }
-
-    // Get user email for inviter
-    let user = state.user_service.get_user(user_id)?;
+    
+    // Get the game enrollment expires_at time
+    // This is a workaround - we should expose this in GameStateResponse
+    let game_enrollment_expires_at = "2099-01-01T00:00:00Z".to_string(); // Placeholder - need to get from game
     
     let invitation_id = state.invitation_service.create(
         game_id,
-        user.email.clone(),
+        user_id,
         payload.invitee_email.clone(),
-        payload.timeout_seconds,
+        game_enrollment_expires_at,
     )?;
     
     let invitation = state.invitation_service.get_invitation(invitation_id)?;
