@@ -537,10 +537,10 @@ Implement a game lobby system where authenticated users create games with a glob
 
 #### API Layer Changes
 
-- [ ] **Authentication Endpoints** (deferred to M8)
-  - [ ] Implement `POST /api/v1/users/register` - Register new user
-  - [ ] Implement `POST /api/v1/users/login` - Login user, return JWT token
-  - [ ] Implement `POST /api/v1/users/logout` - Logout user
+- [x] **Authentication Endpoints** (M7 Complete)
+  - [x] Implement `POST /api/v1/auth/register` - Register new user
+  - [x] Implement `POST /api/v1/auth/login` - Login user, return JWT token
+  - [ ] Implement `POST /api/v1/auth/logout` - Logout user (deferred to M8)
 
 - ✅ **Game Management Endpoints** (PHASE 1 Complete - All handlers wired and functional)
   - ✅ `POST /api/v1/games` - Create new game
