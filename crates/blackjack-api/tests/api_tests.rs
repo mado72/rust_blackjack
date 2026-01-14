@@ -392,7 +392,7 @@ async fn test_create_game_requires_authentication() {
         .expect("Failed to register test user");
     
     // Login to get JWT token
-    let token = user_service
+    let _token = user_service
         .login(test_email, test_password)
         .expect("Failed to login");
     
@@ -416,7 +416,7 @@ async fn test_create_game_requires_authentication() {
     // Since we're testing handlers directly, we need to test with Extension
     use axum::extract::{State as AxumState, Extension};
     use axum::Json;
-    use blackjack_api::handlers::{create_game, CreateGameRequest, CreateGameResponse};
+    use blackjack_api::handlers::{create_game, CreateGameRequest};
     use blackjack_api::auth::Claims;
     
     // Test 2: With valid authentication
