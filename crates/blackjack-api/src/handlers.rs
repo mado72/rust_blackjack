@@ -681,14 +681,14 @@ pub async fn draw_card(
 ) -> Result<Json<DrawCardResponse>, ApiError> {
     // Validate it's the player's turn
     let game_state = state.game_service.get_game_state(game_id)?;
-    if let Some(current_player) = game_state.current_turn_player {
-        if current_player != claims.email {
-            return Err(ApiError::new(
-                StatusCode::CONFLICT,
-                "NOT_YOUR_TURN",
-                "It's not your turn",
-            ));
-        }
+    if let Some(current_player) = game_state.current_turn_player
+        && current_player != claims.email
+    {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "NOT_YOUR_TURN",
+            "It's not your turn",
+        ));
     }
 
     let response = state.game_service.draw_card(game_id, &claims.email)?;

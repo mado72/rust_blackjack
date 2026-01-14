@@ -3,13 +3,45 @@
 ## Current Status
 
 **Branch:** `feature/M7`  
-**Data:** January 10, 2026  
-**Implementação:** Core & Service Layer 100% ✅ | API Layer 100% (Enrollment) ✅  
-**Testes:** 78 testes passando ✅
+**Data:** January 14, 2026  
+**Implementação:** ✅ PHASE 1 COMPLETE | ✅ PHASE 2 COMPLETE  
+**Testes:** 83 testes passando ✅
 
 ---
 
-## ✅ Session 1 Completion Summary
+## ✅ PHASE 2 Completion Summary (January 14, 2026)
+
+### All Features Verified and Tested ✅
+
+**PHASE 2A: Invitation Endpoints**
+- ✅ `POST /api/v1/games/:game_id/invitations` - Already implemented and wired
+- ✅ `GET /api/v1/invitations/pending` - Already implemented and wired
+- ✅ `POST /api/v1/invitations/:id/accept` - Already implemented and wired
+- ✅ `POST /api/v1/invitations/:id/decline` - Already implemented and wired
+
+**PHASE 3: Turn Management System**
+- ✅ PlayerState enum (Active, Standing, Busted)
+- ✅ get_current_player() - Get current turn player
+- ✅ advance_turn() - Move to next active player
+- ✅ can_player_act() - Validate player can act
+- ✅ stand() - Mark player as standing
+- ✅ check_auto_finish() - Check if game should end
+- ✅ draw_card() - Updated with turn validation
+
+**PHASE 2B: Stand Endpoint**
+- ✅ `POST /api/v1/games/:game_id/stand` - Already implemented and wired
+
+**Testing:**
+- ✅ 19 new tests added for Phase 2 functionality
+- ✅ All 83 tests passing
+- ✅ Zero clippy warnings
+- ✅ Release build successful
+
+**See full details:** `docs/PHASE2_COMPLETION.md`
+
+---
+
+## ✅ PHASE 1 Completion Summary (January 10, 2026)
 
 ### PHASE 1: Wire API Routing - COMPLETE ✅
 

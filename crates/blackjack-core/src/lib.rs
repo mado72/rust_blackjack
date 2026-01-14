@@ -429,12 +429,11 @@ impl Game {
             }
 
             // Check if current player is active
-            if let Some(email) = self.turn_order.get(self.current_turn_index) {
-                if let Some(player) = self.players.get(email) {
-                    if player.state == PlayerState::Active {
-                        break;
-                    }
-                }
+            if let Some(email) = self.turn_order.get(self.current_turn_index)
+                && let Some(player) = self.players.get(email)
+                && player.state == PlayerState::Active
+            {
+                break;
             }
         }
     }
@@ -445,12 +444,11 @@ impl Game {
             return false;
         }
 
-        if let Some(current_email) = self.get_current_player() {
-            if current_email == email {
-                if let Some(player) = self.players.get(email) {
-                    return player.state == PlayerState::Active;
-                }
-            }
+        if let Some(current_email) = self.get_current_player()
+            && current_email == email
+            && let Some(player) = self.players.get(email)
+        {
+            return player.state == PlayerState::Active;
         }
         false
     }

@@ -306,8 +306,264 @@ fn test_busted_player_cannot_draw() {
 #[test]
 fn test_valid_player_range() {
     // In new M7 model, creating a game is independent of player count
-    for count in 0..=10 {
+    for _count in 0..=10 {
         let result = Game::new(test_creator_id(), 300);
         assert!(result.is_ok(), "Should accept enrollment with 0-10 players");
     }
+}
+
+// =====================================
+// PHASE 2 TESTS - Turn Management & Stand
+// =====================================
+
+#[test]
+fn test_player_state_initial() {
+    use blackjack_core::PlayerState;
+    let game = test_game(vec!["player1@test.com"]).unwrap();
+    
+    let player = game.players.get("player1@test.com").unwrap();
+    assert_eq!(player.state, PlayerState::Active, "New players should be Active");
+}
+
+#[test]
+fn test_get_current_player() {
+    let game = test_game(vec![
+        "player1@test.com",
+        "player2@test.com",
+        "player3@test.com",
+    ]).unwrap();
+    
+    // First player should be current
+    let current = game.get_current_player();
+    assert_eq!(current, Some("player1@test.com"), "First player should have first turn");
+}
+
+#[test]
+fn test_advance_turn() {
+    let mut game = test_game(vec![
+        "player1@test.com",
+        "player2@test.com",
+        "player3@test.com",
+    ]).unwrap();
+    
+    assert_eq!(game.get_current_player(), Some("player1@test.com"));
+    
+    game.advance_turn();
+    assert_eq!(game.get_current_player(), Some("player2@test.com"));
+    
+    game.advance_turn();
+    assert_eq!(game.get_current_player(), Some("player3@test.com"));
+    
+    game.advance_turn();
+    assert_eq!(game.get_current_player(), Some("player1@test.com"), "Should wrap around");
+}
+
+#[test]
+fn test_advance_turn_skips_standing_players() {
+    use blackjack_core::PlayerState;
+    let mut game = test_game(vec![
+        "player1@test.com",
+        "player2@test.com",
+        "player3@test.com",
+    ]).unwrap();
+    
+    // Mark player2 as standing
+    game.players.get_mut("player2@test.com").unwrap().state = PlayerState::Standing;
+    
+    assert_eq!(game.get_current_player(), Some("player1@test.com"));
+    
+    game.advance_turn();
+    // Should skip player2 and go to player3
+    assert_eq!(game.get_current_player(), Some("player3@test.com"));
+}
+
+#[test]
+fn test_advance_turn_skips_busted_players() {
+    use blackjack_core::PlayerState;
+    let mut game = test_game(vec![
+        "player1@test.com",
+        "player2@test.com",
+        "player3@test.com",
+    ]).unwrap();
+    
+    // Mark player2 as busted
+    game.players.get_mut("player2@test.com").unwrap().state = PlayerState::Busted;
+    
+    assert_eq!(game.get_current_player(), Some("player1@test.com"));
+    
+    game.advance_turn();
+    // Should skip player2 and go to player3
+    assert_eq!(game.get_current_player(), Some("player3@test.com"));
+}
+
+#[test]
+fn test_stand_marks_player_as_standing() {
+    use blackjack_core::PlayerState;
+    let mut game = test_game(vec!["player1@test.com", "player2@test.com"]).unwrap();
+    
+    assert_eq!(game.get_current_player(), Some("player1@test.com"));
+    
+    game.stand("player1@test.com").unwrap();
+    
+    let player = game.players.get("player1@test.com").unwrap();
+    assert_eq!(player.state, PlayerState::Standing);
+}
+
+#[test]
+fn test_stand_advances_turn() {
+    let mut game = test_game(vec!["player1@test.com", "player2@test.com"]).unwrap();
+    
+    assert_eq!(game.get_current_player(), Some("player1@test.com"));
+    
+    game.stand("player1@test.com").unwrap();
+    
+    assert_eq!(game.get_current_player(), Some("player2@test.com"));
+}
+
+#[test]
+fn test_stand_not_your_turn() {
+    let mut game = test_game(vec!["player1@test.com", "player2@test.com"]).unwrap();
+    
+    assert_eq!(game.get_current_player(), Some("player1@test.com"));
+    
+    let result = game.stand("player2@test.com");
+    assert_eq!(result, Err(GameError::NotPlayerTurn));
+}
+
+#[test]
+fn test_stand_auto_finishes_game() {
+    let mut game = test_game(vec!["player1@test.com", "player2@test.com"]).unwrap();
+    
+    assert!(!game.finished);
+    
+    game.stand("player1@test.com").unwrap();
+    assert!(!game.finished, "Game should not finish with one player remaining");
+    
+    game.stand("player2@test.com").unwrap();
+    assert!(game.finished, "Game should auto-finish when all players stand");
+}
+
+#[test]
+fn test_check_auto_finish_all_standing() {
+    use blackjack_core::PlayerState;
+    let mut game = test_game(vec!["player1@test.com", "player2@test.com"]).unwrap();
+    
+    game.players.get_mut("player1@test.com").unwrap().state = PlayerState::Standing;
+    game.players.get_mut("player2@test.com").unwrap().state = PlayerState::Standing;
+    
+    assert!(game.check_auto_finish(), "Should auto-finish when all players standing");
+}
+
+#[test]
+fn test_check_auto_finish_all_busted() {
+    use blackjack_core::PlayerState;
+    let mut game = test_game(vec!["player1@test.com", "player2@test.com"]).unwrap();
+    
+    game.players.get_mut("player1@test.com").unwrap().state = PlayerState::Busted;
+    game.players.get_mut("player2@test.com").unwrap().state = PlayerState::Busted;
+    
+    assert!(game.check_auto_finish(), "Should auto-finish when all players busted");
+}
+
+#[test]
+fn test_check_auto_finish_mixed() {
+    use blackjack_core::PlayerState;
+    let mut game = test_game(vec!["player1@test.com", "player2@test.com"]).unwrap();
+    
+    game.players.get_mut("player1@test.com").unwrap().state = PlayerState::Standing;
+    game.players.get_mut("player2@test.com").unwrap().state = PlayerState::Busted;
+    
+    assert!(game.check_auto_finish(), "Should auto-finish when all players done (standing or busted)");
+}
+
+#[test]
+fn test_check_auto_finish_has_active_player() {
+    use blackjack_core::PlayerState;
+    let mut game = test_game(vec!["player1@test.com", "player2@test.com"]).unwrap();
+    
+    game.players.get_mut("player1@test.com").unwrap().state = PlayerState::Standing;
+    game.players.get_mut("player2@test.com").unwrap().state = PlayerState::Active;
+    
+    assert!(!game.check_auto_finish(), "Should not auto-finish with active players");
+}
+
+#[test]
+fn test_can_player_act_current_turn() {
+    let game = test_game(vec!["player1@test.com", "player2@test.com"]).unwrap();
+    
+    assert!(game.can_player_act("player1@test.com"), "Current player should be able to act");
+    assert!(!game.can_player_act("player2@test.com"), "Non-current player should not be able to act");
+}
+
+#[test]
+fn test_can_player_act_enrollment_open() {
+    let mut game = Game::new(test_creator_id(), 300).unwrap();
+    game.add_player("player1@test.com".to_string()).unwrap();
+    
+    // Enrollment still open
+    assert!(!game.can_player_act("player1@test.com"), "Cannot act during enrollment phase");
+}
+
+#[test]
+fn test_draw_card_advances_turn() {
+    let mut game = test_game(vec!["player1@test.com", "player2@test.com"]).unwrap();
+    
+    assert_eq!(game.get_current_player(), Some("player1@test.com"));
+    
+    game.draw_card("player1@test.com").unwrap();
+    
+    assert_eq!(game.get_current_player(), Some("player2@test.com"), "Turn should advance after drawing");
+}
+
+#[test]
+fn test_draw_card_not_your_turn() {
+    let mut game = test_game(vec!["player1@test.com", "player2@test.com"]).unwrap();
+    
+    assert_eq!(game.get_current_player(), Some("player1@test.com"));
+    
+    let result = game.draw_card("player2@test.com");
+    assert_eq!(result, Err(GameError::NotPlayerTurn));
+}
+
+#[test]
+fn test_draw_card_enrollment_open() {
+    let mut game = Game::new(test_creator_id(), 300).unwrap();
+    game.add_player("player1@test.com".to_string()).unwrap();
+    
+    let result = game.draw_card("player1@test.com");
+    assert_eq!(result, Err(GameError::NotPlayerTurn), "Cannot draw during enrollment phase");
+}
+
+#[test]
+fn test_busted_player_state_updates() {
+    use blackjack_core::PlayerState;
+    let mut game = test_game(vec!["player1@test.com"]).unwrap();
+    
+    // Find high-value cards to make player bust
+    let player = game.players.get_mut("player1@test.com").unwrap();
+    
+    // Add cards manually to make player bust (e.g., 10 + 10 + 5 = 25)
+    let ten_card_1 = game.available_cards.iter()
+        .find(|c| c.value == 10)
+        .cloned()
+        .expect("Should have a 10-value card");
+    
+    let ten_card_2 = game.available_cards.iter()
+        .filter(|c| c.value == 10 && c.id != ten_card_1.id)
+        .next()
+        .cloned()
+        .expect("Should have another 10-value card");
+    
+    let five_card = game.available_cards.iter()
+        .find(|c| c.name == "5")
+        .cloned()
+        .expect("Should have a 5 card");
+    
+    player.add_card(ten_card_1);
+    player.add_card(ten_card_2);
+    player.add_card(five_card);
+    
+    assert_eq!(player.state, PlayerState::Busted, "Busted state should be set when points > 21");
+    assert!(player.busted, "Player should be marked as busted");
+    assert!(player.points > 21, "Player points should be > 21");
 }
