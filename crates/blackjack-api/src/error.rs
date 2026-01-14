@@ -305,7 +305,7 @@ impl From<blackjack_service::GameError> for ApiError {
                 )
             }
             GameError::NotPlayerTurn => {
-                Self::new(StatusCode::FORBIDDEN, "NOT_YOUR_TURN", "It's not your turn")
+                Self::new(StatusCode::CONFLICT, "NOT_YOUR_TURN", "It's not your turn")
             }
             GameError::PlayerNotActive => {
                 Self::new(StatusCode::FORBIDDEN, "PLAYER_NOT_ACTIVE", "Player is not active")
