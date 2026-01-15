@@ -37,7 +37,8 @@ use blackjack_api::handlers::{
     kick_player, login, ready_check, register_user, set_ace_value, stand,
 };
 use blackjack_api::middleware::{
-    auth_middleware, rate_limit_middleware, version_deprecation_middleware,
+    auth_middleware, rate_limit_middleware, security_headers_middleware,
+    version_deprecation_middleware,
 };
 use blackjack_api::rate_limiter::RateLimiter;
 use blackjack_service::{
@@ -172,6 +173,8 @@ async fn main() {
                     state.clone(),
                     auth_middleware,
                 ))
+                // Security headers (M8: adds security headers to all responses)
+                .layer(axum::middleware::from_fn(security_headers_middleware))
                 // API deprecation headers (applied last, adds headers to responses)
                 .layer(axum::middleware::from_fn_with_state(
                     state.clone(),
