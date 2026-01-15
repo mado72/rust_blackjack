@@ -210,7 +210,7 @@ fn test_finish_game() {
     let _ = service.draw_card(game_id, creator_id);
     let _ = service.draw_card(game_id, player1_id);
 
-    let result = service.finish_game(game_id);
+    let result = service.finish_game(game_id, creator_id);
     assert!(result.is_ok());
 
     let game_result = result.unwrap();

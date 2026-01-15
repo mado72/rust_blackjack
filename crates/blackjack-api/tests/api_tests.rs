@@ -340,13 +340,13 @@ fn test_user_service_creation() {
     let service = UserService::new();
 
     // Register a new user
-    let user_id = service.register("user1@example.com".to_string(), "password123".to_string());
+    let user_id = service.register("user1@example.com".to_string(), "TestP@ssw0rd".to_string());
     assert!(user_id.is_ok(), "User registration should succeed");
 
     let user_id = user_id.unwrap();
 
     // Login with correct credentials
-    let login_result = service.login("user1@example.com", "password123");
+    let login_result = service.login("user1@example.com", "TestP@ssw0rd");
     assert!(
         login_result.is_ok(),
         "Login with correct password should succeed"
@@ -359,7 +359,7 @@ fn test_user_service_creation() {
     // Try to register duplicate email
     let duplicate = service.register(
         "user1@example.com".to_string(),
-        "different_password".to_string(),
+        "Different@Pass1".to_string(),
     );
     assert!(duplicate.is_err(), "Duplicate email should fail");
 }
@@ -677,8 +677,8 @@ async fn test_stand_not_your_turn() {
     };
 
     // Create two users
-    let user1_id = user_service.register("player1@example.com".to_string(), "pass123".to_string()).unwrap();
-    let user2_id = user_service.register("player2@example.com".to_string(), "pass123".to_string()).unwrap();
+    let user1_id = user_service.register("player1@example.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
+    let user2_id = user_service.register("player2@example.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
 
     // Create game with player1
     let game_id = game_service.create_game(user1_id, None).unwrap();
@@ -745,14 +745,14 @@ async fn test_draw_card_game_already_finished() {
     };
 
     // Create user and game
-    let user_id = user_service.register("player1@example.com".to_string(), "pass123".to_string()).unwrap();
+    let user_id = user_service.register("player1@example.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
     let game_id = game_service.create_game(user_id, None).unwrap();
     
     // Close enrollment
     game_service.close_enrollment(game_id, user_id).unwrap();
     
     // Finish the game
-    game_service.finish_game(game_id).unwrap();
+    game_service.finish_game(game_id, user_id).unwrap();
 
     // Try to draw card after game is finished
     let claims = Claims {

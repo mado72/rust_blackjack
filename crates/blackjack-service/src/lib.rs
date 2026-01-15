@@ -431,14 +431,50 @@ impl InvitationService {
     }
 
     /// Creates a new game invitation using the game's enrollment expiration time
-    #[tracing::instrument(skip(self))]
+    ///
+    /// # Security (Milestone 8)
+    ///
+    /// Only game participants (creator or enrolled players) can invite others.
+    /// Uses RBAC permission check to verify inviter has `InvitePlayers` permission.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_id` - The game to invite to
+    /// * `inviter_id` - User creating the invitation
+    /// * `invitee_email` - Email of user being invited
+    /// * `game_enrollment_expires_at` - Enrollment expiration from game
+    /// * `games` - Reference to games HashMap for permission check
+    ///
+    /// # Errors
+    ///
+    /// - `InsufficientPermissions` if inviter is not a participant
+    /// - `GameNotFound` if game doesn't exist
+    #[tracing::instrument(skip(self, games))]
     pub fn create(
         &self,
         game_id: Uuid,
         inviter_id: Uuid,
         invitee_email: String,
         game_enrollment_expires_at: String,
+        games: &std::sync::Arc<std::sync::Mutex<HashMap<Uuid, Game>>>,
     ) -> Result<Uuid, GameError> {
+        use blackjack_core::GamePermission;
+
+        // Check if inviter has permission
+        let games_lock = games.lock().unwrap();
+        let game = games_lock.get(&game_id).ok_or(GameError::GameNotFound)?;
+
+        if !game.can_user_perform(inviter_id, GamePermission::InvitePlayers) {
+            tracing::warn!(
+                game_id = %game_id,
+                inviter_id = %inviter_id,
+                "Permission denied: user attempted to invite player"
+            );
+            return Err(GameError::InsufficientPermissions);
+        }
+
+        drop(games_lock); // Release lock before creating invitation
+
         let invitation = GameInvitation::new(
             game_id,
             inviter_id,
@@ -453,6 +489,7 @@ impl InvitationService {
         tracing::info!(
             invitation_id = %invitation_id,
             game_id = %game_id,
+            inviter_id = %inviter_id,
             "Invitation created"
         );
 
@@ -700,20 +737,38 @@ impl GameService {
     }
 
     /// Closes enrollment for a game (only creator can do this)
-    #[tracing::instrument(skip(self), fields(game_id))]
+    ///
+    /// # Security (Milestone 8)
+    ///
+    /// Uses RBAC permission check. Only users with `CloseEnrollment` permission
+    /// (i.e., the game creator) can close enrollment.
+    ///
+    /// # Errors
+    ///
+    /// - `InsufficientPermissions` if user doesn't have permission
+    /// - `GameNotFound` if game doesn't exist
+    #[tracing::instrument(skip(self), fields(game_id, user_id))]
     pub fn close_enrollment(&self, game_id: Uuid, user_id: Uuid) -> Result<Vec<String>, GameError> {
+        use blackjack_core::GamePermission;
+
         let mut games = self.games.lock().unwrap();
         let game = games.get_mut(&game_id).ok_or(GameError::GameNotFound)?;
 
-        // Check if user is the creator
-        if game.creator_id != user_id {
-            return Err(GameError::NotGameCreator);
+        // Check if user has permission to close enrollment
+        if !game.can_user_perform(user_id, GamePermission::CloseEnrollment) {
+            tracing::warn!(
+                game_id = %game_id,
+                user_id = %user_id,
+                "Permission denied: user attempted to close enrollment"
+            );
+            return Err(GameError::InsufficientPermissions);
         }
 
         game.close_enrollment()?;
 
         tracing::info!(
             game_id = %game_id,
+            user_id = %user_id,
             enrolled_count = game.players.len(),
             turn_order = ?game.turn_order,
             "Enrollment closed"
@@ -874,6 +929,96 @@ impl GameService {
         Ok(())
     }
 
+    /// Removes a player from a game (only creator can do this)
+    ///
+    /// # Security (Milestone 8)
+    ///
+    /// - Only the game creator can kick players
+    /// - Cannot kick the creator themselves
+    /// - Can only kick during enrollment phase (before enrollment closes)
+    ///
+    /// # Arguments
+    ///
+    /// * `game_id` - The game ID
+    /// * `kicker_id` - User attempting to kick
+    /// * `player_id` - User to be kicked
+    ///
+    /// # Returns
+    ///
+    /// The email of the kicked player
+    ///
+    /// # Errors
+    ///
+    /// - `InsufficientPermissions` if kicker is not the creator
+    /// - `CannotKickCreator` if attempting to kick the creator
+    /// - `EnrollmentClosed` if enrollment has already closed
+    /// - `PlayerNotInGame` if player is not enrolled
+    /// - `GameNotFound` if game doesn't exist
+    #[tracing::instrument(skip(self), fields(game_id, kicker_id, player_id))]
+    pub fn kick_player(
+        &self,
+        game_id: Uuid,
+        kicker_id: Uuid,
+        player_id: Uuid,
+    ) -> Result<String, GameError> {
+        use blackjack_core::GamePermission;
+
+        let mut games = self.games.lock().unwrap();
+        let game = games.get_mut(&game_id).ok_or(GameError::GameNotFound)?;
+
+        // Check if kicker has permission
+        if !game.can_user_perform(kicker_id, GamePermission::KickPlayers) {
+            tracing::warn!(
+                game_id = %game_id,
+                kicker_id = %kicker_id,
+                "Permission denied: user attempted to kick player"
+            );
+            return Err(GameError::InsufficientPermissions);
+        }
+
+        // Cannot kick the creator
+        if game.is_creator(player_id) {
+            tracing::warn!(
+                game_id = %game_id,
+                kicker_id = %kicker_id,
+                player_id = %player_id,
+                "Cannot kick game creator"
+            );
+            return Err(GameError::CoreError(blackjack_core::GameError::CannotKickCreator));
+        }
+
+        // Can only kick during enrollment
+        if game.enrollment_closed {
+            return Err(GameError::EnrollmentClosed);
+        }
+
+        // Get player's email before removing
+        let player_email = game
+            .participants
+            .get(&player_id)
+            .map(|p| p.email.clone())
+            .ok_or(GameError::PlayerNotInGame)?;
+
+        // Remove from participants
+        game.participants.remove(&player_id);
+
+        // Remove from players HashMap
+        game.players.remove(&player_email);
+
+        // Remove from turn order
+        game.turn_order.retain(|email| email != &player_email);
+
+        tracing::info!(
+            game_id = %game_id,
+            kicker_id = %kicker_id,
+            player_id = %player_id,
+            player_email = %player_email,
+            "Player kicked from game"
+        );
+
+        Ok(player_email)
+    }
+
     /// Checks if a user is the creator of a game
     pub fn is_game_creator(&self, game_id: Uuid, user_id: Uuid) -> Result<bool, GameError> {
         let games = self.games.lock().unwrap();
@@ -881,20 +1026,48 @@ impl GameService {
         Ok(game.creator_id == user_id)
     }
 
-    /// Finishes a game and returns the results
-    #[tracing::instrument(skip(self), fields(game_id))]
-    pub fn finish_game(&self, game_id: Uuid) -> Result<GameResult, GameError> {
+    /// Finishes a game manually and returns the results
+    ///
+    /// # Security (Milestone 8)
+    ///
+    /// Only the game creator can manually finish a game.
+    /// Games can also auto-finish when all players stand/bust.
+    ///
+    /// # Arguments
+    ///
+    /// * `game_id` - The game to finish
+    /// * `user_id` - The user attempting to finish the game
+    ///
+    /// # Errors
+    ///
+    /// - `InsufficientPermissions` if user is not the creator
+    /// - `GameNotFound` if game doesn't exist
+    #[tracing::instrument(skip(self), fields(game_id, user_id))]
+    pub fn finish_game(&self, game_id: Uuid, user_id: Uuid) -> Result<GameResult, GameError> {
+        use blackjack_core::GamePermission;
+
         let mut games = self.games.lock().unwrap();
         let game = games.get_mut(&game_id).ok_or(GameError::GameNotFound)?;
+
+        // Check if user has permission to finish game
+        if !game.can_user_perform(user_id, GamePermission::FinishGame) {
+            tracing::warn!(
+                game_id = %game_id,
+                user_id = %user_id,
+                "Permission denied: user attempted to finish game"
+            );
+            return Err(GameError::InsufficientPermissions);
+        }
 
         game.finish_game();
         let results = game.calculate_results();
 
         tracing::info!(
             game_id = %game_id,
+            user_id = %user_id,
             winner = ?results.winner,
             highest_score = results.highest_score,
-            "Game finished"
+            "Game finished manually"
         );
 
         Ok(results)

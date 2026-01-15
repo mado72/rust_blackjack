@@ -1011,7 +1011,13 @@ pub async fn finish_game(
     Extension(claims): Extension<Claims>,
     Path(game_id): Path<Uuid>,
 ) -> Result<Json<GameResult>, ApiError> {
-    let result = state.game_service.finish_game(game_id)?;
+    let user_id = Uuid::parse_str(&claims.user_id)
+        .map_err(|_| ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "INVALID_USER_ID",
+            "Invalid user ID format"
+        ))?;
+    let result = state.game_service.finish_game(game_id, user_id)?;
 
     Ok(Json(result))
 }
@@ -1268,6 +1274,7 @@ pub async fn create_invitation(
         user_id,
         payload.invitee_email.clone(),
         game_enrollment_expires_at,
+        &state.game_service.games, // Pass games reference for permission check
     )?;
 
     let invitation = state.invitation_service.get_invitation(invitation_id)?;
