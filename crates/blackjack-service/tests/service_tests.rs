@@ -7,11 +7,16 @@ fn test_creator_email() -> String {
     "creator@test.com".to_string()
 }
 
+// Helper function for a strong test password (meets M8 security requirements)
+fn test_password() -> String {
+    "TestP@ssw0rd".to_string()
+}
+
 // Helper to create a UserService with a test user
 fn create_test_user_service() -> Arc<UserService> {
     let user_service = Arc::new(UserService::new());
-    // Register the test creator
-    let _ = user_service.register(test_creator_email(), "password123".to_string());
+    // Register the test creator with strong password
+    let _ = user_service.register(test_creator_email(), test_password());
     user_service
 }
 
@@ -75,13 +80,13 @@ fn test_create_game_too_many_players() {
 
     // Note: max_players config is not currently enforced (hardcoded at 10 in Game)
     // Creator is already enrolled, can add up to 9 more for total of 10
-    let p2_id = user_service.register("p2@test.com".to_string(), "pass123".to_string()).unwrap();
+    let p2_id = user_service.register("p2@test.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
     let result = service.enroll_player(game_id, p2_id);
     assert!(result.is_ok()); // Should succeed (total 2)
-    let p3_id = user_service.register("p3@test.com".to_string(), "pass123".to_string()).unwrap();
+    let p3_id = user_service.register("p3@test.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
     let result = service.enroll_player(game_id, p3_id);
     assert!(result.is_ok()); // Should succeed (total 3)
-    let p4_id = user_service.register("p4@test.com".to_string(), "pass123".to_string()).unwrap();
+    let p4_id = user_service.register("p4@test.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
     let result = service.enroll_player(game_id, p4_id);
     assert!(result.is_ok()); // Should succeed (total 4, config max_players not enforced yet)
 }
@@ -111,7 +116,7 @@ fn test_draw_card() {
         .id;
 
     let game_id = service.create_game(creator_id, None).unwrap();
-    let player1_id = user_service.register("player1@test.com".to_string(), "pass123".to_string()).unwrap();
+    let player1_id = user_service.register("player1@test.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
     service.enroll_player(game_id, player1_id).unwrap();
     service.close_enrollment(game_id, creator_id).unwrap();
 
@@ -142,7 +147,7 @@ fn test_set_ace_value() {
         .id;
 
     let game_id = service.create_game(creator_id, None).unwrap();
-    let player1_id = user_service.register("player1@test.com".to_string(), "pass123".to_string()).unwrap();
+    let player1_id = user_service.register("player1@test.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
     service.enroll_player(game_id, player1_id).unwrap();
     service.close_enrollment(game_id, creator_id).unwrap();
 
@@ -174,8 +179,8 @@ fn test_get_game_state() {
         .id;
 
     let game_id = service.create_game(creator_id, None).unwrap();
-    let player1_id = user_service.register("player1@test.com".to_string(), "pass123".to_string()).unwrap();
-    let player2_id = user_service.register("player2@test.com".to_string(), "pass123".to_string()).unwrap();
+    let player1_id = user_service.register("player1@test.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
+    let player2_id = user_service.register("player2@test.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
     service.enroll_player(game_id, player1_id).unwrap();
     service.enroll_player(game_id, player2_id).unwrap();
 
@@ -197,8 +202,8 @@ fn test_finish_game() {
         .id;
 
     let game_id = service.create_game(creator_id, None).unwrap();
-    let player1_id = user_service.register("player1@test.com".to_string(), "pass123".to_string()).unwrap();
-    let player2_id = user_service.register("player2@test.com".to_string(), "pass123".to_string()).unwrap();
+    let player1_id = user_service.register("player1@test.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
+    let player2_id = user_service.register("player2@test.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
     service.enroll_player(game_id, player1_id).unwrap();
     service.enroll_player(game_id, player2_id).unwrap();
 
@@ -226,8 +231,8 @@ fn test_concurrent_access() {
     let service = Arc::new(game_service);
 
     let game_id = service.create_game(creator_id, None).unwrap();
-    let player1_id = user_service.register("player1@test.com".to_string(), "pass123".to_string()).unwrap();
-    let player2_id = user_service.register("player2@test.com".to_string(), "pass123".to_string()).unwrap();
+    let player1_id = user_service.register("player1@test.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
+    let player2_id = user_service.register("player2@test.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
     service.enroll_player(game_id, player1_id).unwrap();
     service.enroll_player(game_id, player2_id).unwrap();
     service.close_enrollment(game_id, creator_id).unwrap();
@@ -270,7 +275,7 @@ fn test_draw_until_deck_empty() {
         .id;
 
     let game_id = service.create_game(creator_id, None).unwrap();
-    let player1_id = user_service.register("player1@test.com".to_string(), "pass123".to_string()).unwrap();
+    let player1_id = user_service.register("player1@test.com".to_string(), "TestP@ssw0rd".to_string()).unwrap();
     service.enroll_player(game_id, player1_id).unwrap();
     service.close_enrollment(game_id, creator_id).unwrap();
 

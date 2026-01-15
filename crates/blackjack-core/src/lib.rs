@@ -3,6 +3,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
+/// Password hashing and verification module
+pub mod password;
+
+/// Email and password validation module
+pub mod validation;
+
 /// Suits available in the deck
 const SUITS: [&str; 4] = ["Hearts", "Diamonds", "Clubs", "Spades"];
 
@@ -37,11 +43,24 @@ pub struct Card {
 pub struct User {
     pub id: Uuid,
     pub email: String,
+    /// Argon2id password hash - NEVER store plaintext passwords
     pub password_hash: String,
+    /// Account status - false means account is suspended
+    #[serde(default = "default_active")]
+    pub is_active: bool,
+    /// Last successful login timestamp (ISO 8601 format)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_login: Option<String>,
+    /// Account creation timestamp (ISO 8601 format)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
+    /// Player statistics
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stats: Option<UserStats>,
+}
+
+fn default_active() -> bool {
+    true
 }
 
 /// Player statistics
@@ -102,14 +121,46 @@ impl UserStats {
 
 impl User {
     /// Creates a new user with the given email and password hash
+    ///
+    /// # Arguments
+    ///
+    /// * `email` - User's email address (must be validated before calling)
+    /// * `password_hash` - Argon2id password hash (must be hashed before calling)
+    ///
+    /// # Note
+    ///
+    /// This function does NOT validate the email or hash the password.
+    /// Use `validation::validate_email()` and `password::hash_password()` first.
     pub fn new(email: String, password_hash: String) -> Self {
         Self {
             id: Uuid::new_v4(),
             email,
             password_hash,
+            is_active: true,
+            last_login: None,
             created_at: Some(chrono::Utc::now().to_rfc3339()),
             stats: Some(UserStats::new()),
         }
+    }
+
+    /// Updates the last login timestamp to current time
+    pub fn update_last_login(&mut self) {
+        self.last_login = Some(chrono::Utc::now().to_rfc3339());
+    }
+
+    /// Checks if the user account is active
+    pub fn is_account_active(&self) -> bool {
+        self.is_active
+    }
+
+    /// Deactivates the user account
+    pub fn deactivate(&mut self) {
+        self.is_active = false;
+    }
+
+    /// Activates the user account
+    pub fn activate(&mut self) {
+        self.is_active = true;
     }
 }
 
@@ -293,6 +344,12 @@ pub enum GameError {
     PlayerAlreadyEnrolled,
     EnrollmentNotClosed,
     GameNotActive,
+    /// User does not have permission to perform this action
+    InsufficientPermissions,
+    /// User is not a participant in the game
+    NotAParticipant,
+    /// Cannot kick the game creator
+    CannotKickCreator,
 }
 
 impl std::fmt::Display for GameError {
@@ -314,17 +371,112 @@ impl std::fmt::Display for GameError {
             }
             GameError::EnrollmentNotClosed => write!(f, "Cannot play until enrollment is closed"),
             GameError::GameNotActive => write!(f, "Game is not active"),
+            GameError::InsufficientPermissions => {
+                write!(f, "User does not have permission to perform this action")
+            }
+            GameError::NotAParticipant => write!(f, "User is not a participant in this game"),
+            GameError::CannotKickCreator => write!(f, "Cannot kick the game creator"),
         }
     }
 }
 
 impl std::error::Error for GameError {}
 
+/// Game role types - defines participant roles in a game
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GameRole {
+    /// Game creator - has all permissions
+    Creator,
+    /// Regular player - limited to own actions
+    Player,
+    /// Spectator - future feature, read-only access
+    Spectator,
+}
+
+/// Game permissions - specific actions that can be performed
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GamePermission {
+    /// Invite other players to join the game
+    InvitePlayers,
+    /// Remove players from the game
+    KickPlayers,
+    /// Manually close enrollment to start the game
+    CloseEnrollment,
+    /// Manually finish the game (auto-finish still works)
+    FinishGame,
+    /// Modify game settings
+    ModifySettings,
+}
+
+impl GameRole {
+    /// Checks if this role has the specified permission
+    ///
+    /// # Permissions by role:
+    ///
+    /// - **Creator**: All permissions
+    /// - **Player**: None (only their own actions like draw, stand)
+    /// - **Spectator**: None (read-only, future feature)
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use blackjack_core::{GameRole, GamePermission};
+    ///
+    /// assert!(GameRole::Creator.has_permission(GamePermission::KickPlayers));
+    /// assert!(!GameRole::Player.has_permission(GamePermission::KickPlayers));
+    /// ```
+    pub fn has_permission(&self, _permission: GamePermission) -> bool {
+        match self {
+            GameRole::Creator => true, // Creator has all permissions
+            GameRole::Player => false, // Players only perform their own actions
+            GameRole::Spectator => false, // Spectators are read-only
+        }
+    }
+
+    /// Returns all permissions for this role
+    pub fn permissions(&self) -> Vec<GamePermission> {
+        match self {
+            GameRole::Creator => vec![
+                GamePermission::InvitePlayers,
+                GamePermission::KickPlayers,
+                GamePermission::CloseEnrollment,
+                GamePermission::FinishGame,
+                GamePermission::ModifySettings,
+            ],
+            GameRole::Player | GameRole::Spectator => vec![],
+        }
+    }
+}
+
+/// Represents a participant in a game with their role
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GameParticipant {
+    pub user_id: Uuid,
+    pub email: String,
+    pub role: GameRole,
+    pub joined_at: String,
+}
+
+impl GameParticipant {
+    /// Creates a new game participant
+    pub fn new(user_id: Uuid, email: String, role: GameRole) -> Self {
+        Self {
+            user_id,
+            email,
+            role,
+            joined_at: chrono::Utc::now().to_rfc3339(),
+        }
+    }
+}
+
 /// Represents a game with multiple players
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Game {
     pub id: Uuid,
     pub creator_id: Uuid,
+    /// Participants with their roles (user_id -> GameParticipant)
+    pub participants: HashMap<Uuid, GameParticipant>,
     pub players: HashMap<String, Player>,
     pub dealer: Player,
     pub available_cards: Vec<Card>,
@@ -367,6 +519,13 @@ impl Game {
         let mut players = HashMap::new();
         players.insert(creator_email.clone(), Player::new(creator_email.clone()));
 
+        // Initialize participants with creator as Creator role
+        let mut participants = HashMap::new();
+        participants.insert(
+            creator_id,
+            GameParticipant::new(creator_id, creator_email.clone(), GameRole::Creator),
+        );
+
         let turn_order = vec![creator_email];
 
         let dealer = Player::new("dealer".to_string());
@@ -374,6 +533,7 @@ impl Game {
         Ok(Self {
             id: Uuid::new_v4(),
             creator_id,
+            participants,
             players,
             dealer,
             available_cards,
@@ -538,6 +698,104 @@ impl Game {
         }
 
         0
+    }
+
+    /// Gets the role of a participant by user_id
+    ///
+    /// # Arguments
+    ///
+    /// * `user_id` - The user ID to look up
+    ///
+    /// # Returns
+    ///
+    /// * `Some(GameRole)` - The user's role in this game
+    /// * `None` - User is not a participant
+    pub fn get_participant_role(&self, user_id: Uuid) -> Option<GameRole> {
+        self.participants.get(&user_id).map(|p| p.role)
+    }
+
+    /// Checks if a user can perform a specific action
+    ///
+    /// # Arguments
+    ///
+    /// * `user_id` - The user attempting the action
+    /// * `permission` - The permission required
+    ///
+    /// # Returns
+    ///
+    /// * `true` - User has the required permission
+    /// * `false` - User does not have permission or is not a participant
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use blackjack_core::{Game, GamePermission};
+    /// use uuid::Uuid;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let creator_id = Uuid::new_v4();
+    /// let game = Game::new(creator_id, "creator@example.com".to_string(), 300)?;
+    ///
+    /// // Creator can kick players
+    /// assert!(game.can_user_perform(creator_id, GamePermission::KickPlayers));
+    ///
+    /// // Random user cannot
+    /// let other_user = Uuid::new_v4();
+    /// assert!(!game.can_user_perform(other_user, GamePermission::KickPlayers));
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn can_user_perform(&self, user_id: Uuid, permission: GamePermission) -> bool {
+        match self.get_participant_role(user_id) {
+            Some(role) => role.has_permission(permission),
+            None => false,
+        }
+    }
+
+    /// Checks if a user is the game creator
+    ///
+    /// # Arguments
+    ///
+    /// * `user_id` - The user ID to check
+    ///
+    /// # Returns
+    ///
+    /// * `true` - User is the creator
+    /// * `false` - User is not the creator
+    pub fn is_creator(&self, user_id: Uuid) -> bool {
+        self.creator_id == user_id
+    }
+
+    /// Checks if a user is a participant in the game
+    ///
+    /// # Arguments
+    ///
+    /// * `user_id` - The user ID to check
+    ///
+    /// # Returns
+    ///
+    /// * `true` - User is a participant
+    /// * `false` - User is not a participant
+    pub fn is_participant(&self, user_id: Uuid) -> bool {
+        self.participants.contains_key(&user_id)
+    }
+
+    /// Adds a participant to the game (when enrolling)
+    ///
+    /// # Arguments
+    ///
+    /// * `user_id` - The user's ID
+    /// * `email` - The user's email
+    ///
+    /// # Note
+    ///
+    /// Players are added with `GameRole::Player` role.
+    /// Only the creator gets `GameRole::Creator`.
+    pub fn add_participant(&mut self, user_id: Uuid, email: String) {
+        self.participants.insert(
+            user_id,
+            GameParticipant::new(user_id, email, GameRole::Player),
+        );
     }
 
     /// Gets the email of the player whose turn it is

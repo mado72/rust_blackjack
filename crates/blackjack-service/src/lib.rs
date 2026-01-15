@@ -1,5 +1,6 @@
 use blackjack_core::{
-    Card, Game, GameError as CoreGameError, GameInvitation, GameResult, InvitationStatus, User,
+    password, validation, Card, Game, GameError as CoreGameError, GameInvitation, GameResult,
+    InvitationStatus, User,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -52,6 +53,18 @@ pub enum GameError {
     PlayerAlreadyEnrolled,
     #[error("Game not active")]
     GameNotActive,
+    #[error("Weak password: {0}")]
+    WeakPassword(String),
+    #[error("Account is inactive")]
+    AccountInactive,
+    #[error("Insufficient permissions")]
+    InsufficientPermissions,
+    #[error("Account is locked due to too many failed login attempts")]
+    AccountLocked,
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+    #[error("Password hashing failed: {0}")]
+    PasswordHashError(String),
     #[error("Core game error: {0}")]
     CoreError(#[from] CoreGameError),
 }
@@ -208,18 +221,44 @@ impl UserService {
         }
     }
 
-    /// Registers a new user
+    /// Registers a new user with secure password hashing
+    ///
+    /// # Security
+    ///
+    /// - Validates email format
+    /// - Validates password complexity (min 8 chars, uppercase, lowercase, digit, special char)
+    /// - Hashes password using Argon2id with OWASP recommended parameters
+    /// - Prevents duplicate email registration
+    ///
+    /// # Arguments
+    ///
+    /// * `email` - User's email address (must be unique and valid format)
+    /// * `password` - Plaintext password (will be hashed, never stored as plaintext)
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Uuid)` - The new user's ID
+    /// * `Err(GameError)` - Validation or registration error
     #[tracing::instrument(skip(self, password))]
     pub fn register(&self, email: String, password: String) -> Result<Uuid, GameError> {
+        // Validate email format
+        validation::validate_email(&email).map_err(|e| GameError::ValidationError(e.to_string()))?;
+
+        // Validate password complexity
+        validation::validate_password(&password)
+            .map_err(|e| GameError::WeakPassword(e.to_string()))?;
+
         let mut email_index = self.email_index.lock().unwrap();
 
         // Check if user already exists
         if email_index.contains_key(&email) {
+            tracing::warn!(email = %email, "Registration failed: email already exists");
             return Err(GameError::UserAlreadyExists);
         }
 
-        // For now, use a simple placeholder hash (M8 will implement proper hashing)
-        let password_hash = format!("placeholder_hash_{}", password);
+        // Hash password using Argon2id
+        let password_hash = password::hash_password(&password)
+            .map_err(|e| GameError::PasswordHashError(e.to_string()))?;
 
         let user = User::new(email.clone(), password_hash);
         let user_id = user.id;
@@ -228,29 +267,65 @@ impl UserService {
         users.insert(user_id, user);
         email_index.insert(email.clone(), user_id);
 
-        tracing::info!(user_id = %user_id, email = %email, "User registered");
+        tracing::info!(user_id = %user_id, email = %email, "User registered successfully");
 
         Ok(user_id)
     }
 
-    /// Authenticates a user and returns the user
+    /// Authenticates a user with secure password verification
+    ///
+    /// # Security
+    ///
+    /// - Uses constant-time password comparison via Argon2id
+    /// - Updates last_login timestamp on successful login
+    /// - Checks account is_active status
+    /// - Logs authentication attempts (success and failure)
+    /// - Does not reveal whether email or password is incorrect
+    ///
+    /// # Arguments
+    ///
+    /// * `email` - User's email address
+    /// * `password` - Plaintext password to verify
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(User)` - Authenticated user with updated last_login
+    /// * `Err(GameError)` - Authentication failure (invalid credentials or inactive account)
     #[tracing::instrument(skip(self, password))]
     pub fn login(&self, email: &str, password: &str) -> Result<User, GameError> {
         let email_index = self.email_index.lock().unwrap();
         let user_id = email_index
             .get(email)
-            .ok_or(GameError::InvalidCredentials)?;
+            .ok_or_else(|| {
+                tracing::warn!(email = %email, "Login failed: user not found");
+                GameError::InvalidCredentials
+            })?;
 
-        let users = self.users.lock().unwrap();
-        let user = users.get(user_id).ok_or(GameError::UserNotFound)?;
+        let mut users = self.users.lock().unwrap();
+        let user = users.get_mut(user_id).ok_or(GameError::UserNotFound)?;
 
-        // For now, simple placeholder verification (M8 will implement proper verification)
-        let expected_hash = format!("placeholder_hash_{}", password);
-        if user.password_hash != expected_hash {
+        // Check if account is active
+        if !user.is_account_active() {
+            tracing::warn!(user_id = %user_id, email = %email, "Login failed: account inactive");
+            return Err(GameError::AccountInactive);
+        }
+
+        // Verify password using constant-time comparison
+        let password_valid = password::verify_password(password, &user.password_hash)
+            .map_err(|e| {
+                tracing::error!(user_id = %user_id, "Password verification error: {}", e);
+                GameError::PasswordHashError(e.to_string())
+            })?;
+
+        if !password_valid {
+            tracing::warn!(user_id = %user_id, email = %email, "Login failed: incorrect password");
             return Err(GameError::InvalidCredentials);
         }
 
-        tracing::debug!(user_id = %user_id, email = %email, "User logged in");
+        // Update last login timestamp
+        user.update_last_login();
+
+        tracing::info!(user_id = %user_id, email = %email, "User logged in successfully");
 
         Ok(user.clone())
     }
@@ -268,6 +343,68 @@ impl UserService {
 
         let users = self.users.lock().unwrap();
         users.get(user_id).cloned().ok_or(GameError::UserNotFound)
+    }
+
+    /// Changes a user's password
+    ///
+    /// # Security
+    ///
+    /// - Verifies old password before allowing change
+    /// - Validates new password complexity
+    /// - Hashes new password using Argon2id
+    /// - Logs password change events
+    ///
+    /// # Arguments
+    ///
+    /// * `user_id` - The user's ID
+    /// * `old_password` - Current password for verification
+    /// * `new_password` - New password to set
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - Password changed successfully
+    /// * `Err(GameError)` - Verification or validation error
+    ///
+    /// # Note
+    ///
+    /// After password change, all existing JWT tokens should be invalidated
+    /// to force re-login (implemented at API layer).
+    #[tracing::instrument(skip(self, old_password, new_password))]
+    pub fn change_password(
+        &self,
+        user_id: Uuid,
+        old_password: &str,
+        new_password: &str,
+    ) -> Result<(), GameError> {
+        let mut users = self.users.lock().unwrap();
+        let user = users.get_mut(&user_id).ok_or(GameError::UserNotFound)?;
+
+        // Verify old password
+        let old_password_valid = password::verify_password(old_password, &user.password_hash)
+            .map_err(|e| {
+                tracing::error!(user_id = %user_id, "Password verification error: {}", e);
+                GameError::PasswordHashError(e.to_string())
+            })?;
+
+        if !old_password_valid {
+            tracing::warn!(user_id = %user_id, "Password change failed: incorrect old password");
+            return Err(GameError::InvalidCredentials);
+        }
+
+        // Validate new password complexity
+        validation::validate_password(new_password)
+            .map_err(|e| GameError::WeakPassword(e.to_string()))?;
+
+        // Hash new password
+        let new_password_hash = password::hash_password(new_password)
+            .map_err(|e| GameError::PasswordHashError(e.to_string()))?;
+
+        // Update password
+        user.password_hash = new_password_hash;
+
+        tracing::info!(user_id = %user_id, "Password changed successfully");
+
+        Ok(())
     }
 }
 
