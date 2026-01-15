@@ -241,6 +241,111 @@ pub async fn login(
 }
 
 // ============================================================================
+// Player Statistics Endpoints
+// ============================================================================
+
+/// Player statistics response
+#[derive(Debug, Serialize)]
+pub struct PlayerStatsResponse {
+    pub user_id: String,
+    pub email: String,
+    pub games_played: u32,
+    pub games_won: u32,
+    pub games_lost: u32,
+    pub games_tied: u32,
+    pub win_rate: f32,
+    pub average_points: f32,
+    pub highest_score: u8,
+    pub times_busted: u32,
+}
+
+/// Get player statistics
+///
+/// Returns detailed statistics for the authenticated player including games played,
+/// win rate, and performance metrics.
+///
+/// # Endpoint
+///
+/// `GET /api/v1/players/me/stats`
+///
+/// # Authentication
+///
+/// **Required** - User ID extracted from JWT token.
+///
+/// # Response
+///
+/// **Success (200 OK)**:
+/// ```json
+/// {
+///   "user_id": "550e8400-e29b-41d4-a716-446655440000",
+///   "email": "player@example.com",
+///   "games_played": 42,
+///   "games_won": 25,
+///   "games_lost": 15,
+///   "games_tied": 2,
+///   "win_rate": 59.52,
+///   "average_points": 18.5,
+///   "highest_score": 21,
+///   "times_busted": 8
+/// }
+/// ```
+///
+/// # Errors
+///
+/// - **401 Unauthorized** - Invalid or missing JWT token
+/// - **404 Not Found** - User not found
+///
+/// # Example
+///
+/// ```bash
+/// curl -X GET http://localhost:8080/api/v1/players/me/stats \
+///   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+/// ```
+#[tracing::instrument(skip(state))]
+pub async fn get_player_stats(
+    State(state): State<crate::AppState>,
+    Extension(claims): Extension<Claims>,
+) -> Result<Json<PlayerStatsResponse>, ApiError> {
+    let user_id = uuid::Uuid::parse_str(&claims.user_id).map_err(|_| {
+        ApiError::new(
+            StatusCode::UNAUTHORIZED,
+            "INVALID_CLAIMS",
+            "Invalid user ID in JWT token",
+        )
+    })?;
+
+    let user = state.user_service.get_user(user_id)?;
+
+    let stats = user.stats.as_ref().ok_or_else(|| {
+        ApiError::new(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "STATS_UNAVAILABLE",
+            "Player statistics are not available",
+        )
+    })?;
+
+    tracing::info!(
+        user_id = %user_id,
+        email = %user.email,
+        games_played = stats.games_played,
+        "Retrieved player statistics"
+    );
+
+    Ok(Json(PlayerStatsResponse {
+        user_id: user.id.to_string(),
+        email: user.email,
+        games_played: stats.games_played,
+        games_won: stats.games_won,
+        games_lost: stats.games_lost,
+        games_tied: stats.games_tied,
+        win_rate: stats.win_rate(),
+        average_points: stats.average_points(),
+        highest_score: stats.highest_score,
+        times_busted: stats.times_busted,
+    }))
+}
+
+// ============================================================================
 // Health Check Endpoints
 // ============================================================================
 

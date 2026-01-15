@@ -40,6 +40,64 @@ pub struct User {
     pub password_hash: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stats: Option<UserStats>,
+}
+
+/// Player statistics
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UserStats {
+    pub games_played: u32,
+    pub games_won: u32,
+    pub games_lost: u32,
+    pub games_tied: u32,
+    pub total_points: u64,
+    pub highest_score: u8,
+    pub times_busted: u32,
+}
+
+impl UserStats {
+    /// Creates new empty stats
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Records a game outcome
+    pub fn record_game(&mut self, outcome: &PlayerOutcome, points: u8) {
+        self.games_played += 1;
+        self.total_points += points as u64;
+        if points > self.highest_score {
+            self.highest_score = points;
+        }
+
+        match outcome {
+            PlayerOutcome::Won => self.games_won += 1,
+            PlayerOutcome::Lost => self.games_lost += 1,
+            PlayerOutcome::Push => self.games_tied += 1,
+            PlayerOutcome::Busted => {
+                self.games_lost += 1;
+                self.times_busted += 1;
+            }
+        }
+    }
+
+    /// Calculate win rate as percentage
+    pub fn win_rate(&self) -> f32 {
+        if self.games_played == 0 {
+            0.0
+        } else {
+            (self.games_won as f32 / self.games_played as f32) * 100.0
+        }
+    }
+
+    /// Calculate average points per game
+    pub fn average_points(&self) -> f32 {
+        if self.games_played == 0 {
+            0.0
+        } else {
+            self.total_points as f32 / self.games_played as f32
+        }
+    }
 }
 
 impl User {
@@ -50,6 +108,7 @@ impl User {
             email,
             password_hash,
             created_at: Some(chrono::Utc::now().to_rfc3339()),
+            stats: Some(UserStats::new()),
         }
     }
 }

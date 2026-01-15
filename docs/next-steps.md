@@ -129,11 +129,25 @@ Reviewed Product Requirements Document alignment with implemented features:
 
 ## 🎯 Current Focus: Optional Enhancements
 
-### Step 3: Optional Enhancements (In Progress)
+### ✅ Step 3a: Player Statistics - COMPLETE (January 15, 2026)
 
-With core functionality complete and tested, exploring value-add features:
+Added player performance tracking and statistics API:
 
-**Options:**
+**Implemented:**
+- ✅ `UserStats` struct in core library (games_played, won, lost, tied, total_points, highest_score, times_busted)
+- ✅ Stats calculation methods (win_rate, average_points)
+- ✅ Stats recording on game completion (record_game method)
+- ✅ New API endpoint: `GET /api/v1/players/me/stats`
+- ✅ Stats automatically initialized for new users
+
+**Features:**
+- Win rate percentage calculation
+- Average points per game
+- Highest score tracking
+- Times busted counter
+- Full performance history
+
+**Next Options:**
 **Options:**
 1. **WebSocket Support** - Real-time game updates and notifications
 2. **Game Statistics** - Player win/loss records, leaderboards
