@@ -3,9 +3,9 @@
 ## Current Status
 
 **Branch:** `feature/M8`  
-**Data:** January 14, 2026  
-**Implementação:** ✅ PHASE 1 COMPLETE | ✅ PHASE 2 COMPLETE  
-**Testes:** 83 testes passando ✅
+**Date:** January 15, 2026  
+**Implementation:** ✅ PHASE 1 COMPLETE | ✅ PHASE 2 COMPLETE | ✅ Dealer & Scoring Enhancements COMPLETE  
+**Tests:** 106 tests passing ✅ (60 integration tests in core)
 
 ---
 
@@ -38,6 +38,80 @@
 - ✅ Release build successful
 
 **See full details:** `docs/PHASE2_COMPLETION.md`
+
+---
+
+## ✅ Post-Phase 2 Enhancements (January 15, 2026)
+
+### Step 1.a: Dealer Automatic Play Logic - COMPLETE ✅
+
+**Implementation:**
+- ✅ Enhanced `Game::play_dealer()` with comprehensive logging
+- ✅ Dealer draws until 17+ points
+- ✅ Automatic triggering when all players finish
+- ✅ Dealer marked as standing when not busted
+- ✅ Error handling for edge cases
+
+**Testing:**
+- ✅ 11 new dealer tests added (49 → 60 integration tests)
+- ✅ Test scenarios: draw until 17, stop at 17+, can bust, empty deck, auto-trigger
+- ✅ All tests passing
+
+**Documentation:**
+- ✅ Created `DEALER_IMPLEMENTATION.md` with comprehensive examples
+
+### Step 1.b: Game Completion & Enhanced Scoring - COMPLETE ✅
+
+**Implementation:**
+- ✅ Created `PlayerOutcome` enum (Won/Lost/Push/Busted)
+- ✅ Created `PlayerResult` struct with detailed outcome info
+- ✅ Enhanced `GameResult` with `player_results`, `dealer_points`, `dealer_busted`
+- ✅ Updated `calculate_results()` to populate detailed outcomes
+- ✅ Maintained backward compatibility with existing fields
+
+**Testing:**
+- ✅ 12 new scoring tests covering all scenarios:
+  - Player beats dealer, dealer beats player, push, busted
+  - Dealer busted, mixed outcomes, all players bust
+  - Tied winners, multiple players tie (win/lose/push scenarios)
+- ✅ 60 total integration tests in core (was 49)
+- ✅ 106 total workspace tests (was 95)
+
+**API Integration:**
+- ✅ Results endpoint already wired: `GET /api/v1/games/:game_id/results`
+- ✅ Returns enhanced GameResult with detailed per-player outcomes
+
+---
+
+## 🎯 Next Steps
+
+### Immediate Next Phase: API Testing & Documentation
+
+With complete game flow implemented (enrollment → turns → dealer → results), the next logical steps are:
+
+1. **API Testing & Postman Collection** (4-6 hours)
+   - Create comprehensive Postman collection for full game flow
+   - Test complete game lifecycle: create → enroll → play → stand → results
+   - Add integration tests for dealer auto-play
+   - Document expected responses and error cases
+   - Add example curl commands
+
+2. **PRD Alignment Review** (2 hours)
+   - ✅ Already updated PRD.md with dealer & scoring enhancements
+   - Review any remaining deviations from original requirements
+   - Add deployment instructions
+   - Update version history
+
+3. **Optional Enhancements** (Variable)
+   - WebSocket support for real-time game updates
+   - Game statistics and history
+   - Spectator mode
+   - Advanced analytics
+
+4. **Milestone 8 Planning** (if approved)
+   - Security hardening (password encryption, Argon2)
+   - Role-based access control
+   - User account management
 
 ---
 

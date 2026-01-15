@@ -1,14 +1,14 @@
 # Product Requirements Document - Blackjack Multi-Player Backend System
 
-**Version:** 1.4.0  
-**Last Updated:** January 14, 2026  
-**Status:** ✅ **MILESTONE 7 COMPLETE** - Milestones 1-7 Complete, Milestone 8 Planned
+**Version:** 1.4.1  
+**Last Updated:** January 15, 2026  
+**Status:** ✅ **MILESTONE 7 COMPLETE** - Milestones 1-7 Complete + Dealer & Scoring Enhancements, Milestone 8 Planned
 
 ## Document Overview
 
-This document details the transformation of the CLI blackjack game into a production-ready REST backend system with versioned API, JWT authentication, multi-player game management (1-10 players per game), shared 52-card deck, ordered card history, flexible Ace value changes, rate limiting, structured logging, health checks, standardized errors, external configuration, and CI/CD pipeline. Milestone 7 implements a complete game lobby system with enrollment, invitations, turn-based gameplay, and automatic game completion.
+This document details the transformation of the CLI blackjack game into a production-ready REST backend system with versioned API, JWT authentication, multi-player game management (1-10 players per game), shared 52-card deck, ordered card history, flexible Ace value changes, rate limiting, structured logging, health checks, standardized errors, external configuration, and CI/CD pipeline. Milestone 7 implements a complete game lobby system with enrollment, invitations, turn-based gameplay, automatic dealer logic, and comprehensive game completion with detailed scoring.
 
-**Implementation Status: Milestones 1-7 Complete (100%) ✅ | Milestone 8 Planned** 🎯
+**Implementation Status: Milestones 1-7 Complete (100%) ✅ + Post-M7 Enhancements ✅ | Milestone 8 Planned** 🎯
 
 ---
 
@@ -828,6 +828,91 @@ This milestone introduces breaking changes to the API:
 - [postman/PHASE2_TEST_RESULTS.md](postman/PHASE2_TEST_RESULTS.md): Manual test results
 
 **Ready for:** Production deployment, Milestone 8 planning
+
+---
+
+## Post-Milestone 7 Enhancements (January 15, 2026)
+
+**Status:** `completed`  
+**Dependencies:** Milestone 7  
+**Estimated Effort:** 4 hours  
+**Tests:** 106 passing (60 integration tests in core)
+
+### Overview
+
+Enhanced game completion logic with automatic dealer play and comprehensive per-player scoring system to provide detailed game results.
+
+### Completed Tasks
+
+#### 1.a - Dealer Automatic Play Logic ✅
+
+- [x] **Enhanced `Game::play_dealer()` method**
+  - [x] Dealer automatically draws cards until reaching 17+ points
+  - [x] Marks dealer as standing when finished (not busted)
+  - [x] Comprehensive logging at info and debug levels
+  - [x] Error handling for game-already-finished and deck-empty scenarios
+
+- [x] **Automatic Dealer Triggering**
+  - [x] Dealer plays automatically when all players finish (stand or bust)
+  - [x] Integrated with existing `check_auto_finish()` logic
+  - [x] No manual intervention required
+
+- [x] **Test Coverage**
+  - [x] 11 comprehensive dealer tests added
+  - [x] Test scenarios: draws until 17, stops at 17+, can bust, empty deck handling
+  - [x] Test automatic triggering when all players finish
+  - [x] Test dealer cannot play after game finished
+
+#### 1.b - Game Completion & Enhanced Scoring System ✅
+
+- [x] **New Data Structures**
+  - [x] `PlayerOutcome` enum: `Won`, `Lost`, `Push`, `Busted`
+  - [x] `PlayerResult` struct with fields: `points`, `cards_count`, `busted`, `outcome`
+  - [x] Enhanced `GameResult` with new fields:
+    - [x] `player_results: HashMap<String, PlayerResult>` - detailed per-player outcomes
+    - [x] `dealer_points: u8` - final dealer score
+    - [x] `dealer_busted: bool` - whether dealer busted
+  - [x] Maintained backward compatibility with existing fields
+
+- [x] **Enhanced `Game::calculate_results()` method**
+  - [x] Determines individual outcome for each player vs dealer
+  - [x] Populates `player_results` HashMap with detailed information
+  - [x] Handles all scenarios: Won, Lost, Push, Busted
+  - [x] Maintains existing winner/tied_players logic for backward compatibility
+
+- [x] **Comprehensive Test Coverage**
+  - [x] 12 new scoring tests covering all scenarios:
+    - [x] Player beats dealer (Won)
+    - [x] Dealer beats player (Lost)
+    - [x] Player ties dealer (Push)
+    - [x] Player busted
+    - [x] Dealer busted (all non-busted players win)
+    - [x] Mixed outcomes (multiple players with different results)
+    - [x] All players bust
+    - [x] Tied winners (multiple players win with same score)
+    - [x] Multiple players tie and lose
+    - [x] Multiple players tie and push
+    - [x] Three players tie and win
+
+- [x] **Results Endpoint Already Wired**
+  - [x] `GET /api/v1/games/:game_id/results` endpoint functional
+  - [x] Returns enhanced GameResult with detailed player outcomes
+  - [x] Service layer method `get_game_results()` already exists
+
+### Acceptance Criteria
+
+- ✅ Dealer plays automatically when all players finish
+- ✅ Dealer draws until reaching 17+ points
+- ✅ Comprehensive logging throughout dealer play
+- ✅ Each player gets individual outcome (Won/Lost/Push/Busted)
+- ✅ Results include dealer final state (points, busted)
+- ✅ All tie/draw scenarios properly handled
+- ✅ 106 tests passing across workspace (60 integration tests in core)
+- ✅ Zero clippy warnings
+- ✅ Backward compatibility maintained
+
+**Documentation:**
+- [DEALER_IMPLEMENTATION.md](DEALER_IMPLEMENTATION.md) - Comprehensive dealer logic documentation with examples
 
 ---
 
