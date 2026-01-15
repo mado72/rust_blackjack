@@ -27,14 +27,14 @@
 //! ```
 
 use axum::Router;
-use axum::routing::{get, post, put};
+use axum::routing::{delete, get, post, put};
 use blackjack_api::AppState;
 use blackjack_api::config::AppConfig;
 use blackjack_api::handlers::{
-    accept_invitation, close_enrollment, create_game, create_invitation, decline_invitation,
-    draw_card, enroll_player, finish_game, get_game_results, get_game_state, get_open_games,
-    get_pending_invitations, get_player_stats, health_check, login, ready_check, register_user,
-    set_ace_value, stand,
+    accept_invitation, change_password, close_enrollment, create_game, create_invitation,
+    decline_invitation, draw_card, enroll_player, finish_game, get_game_results, get_game_state,
+    get_open_games, get_participants, get_pending_invitations, get_player_stats, health_check,
+    kick_player, login, ready_check, register_user, set_ace_value, stand,
 };
 use blackjack_api::middleware::{
     auth_middleware, rate_limit_middleware, version_deprecation_middleware,
@@ -146,6 +146,9 @@ async fn main() {
         .route("/api/v1/games/:game_id/stand", post(stand))
         .route("/api/v1/games/:game_id/finish", post(finish_game))
         .route("/api/v1/games/:game_id/results", get(get_game_results))
+        // M8: Game management endpoints
+        .route("/api/v1/games/:game_id/players/:player_id", delete(kick_player))
+        .route("/api/v1/games/:game_id/participants", get(get_participants))
         // M7: Invitation endpoints
         .route(
             "/api/v1/games/:game_id/invitations",
@@ -154,6 +157,8 @@ async fn main() {
         .route("/api/v1/invitations/pending", get(get_pending_invitations))
         .route("/api/v1/invitations/:id/accept", post(accept_invitation))
         .route("/api/v1/invitations/:id/decline", post(decline_invitation))
+        // M8: Auth endpoints
+        .route("/api/v1/auth/change-password", post(change_password))
         // Apply middleware layers in order (executed bottom-to-top)
         .layer(
             ServiceBuilder::new()

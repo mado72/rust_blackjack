@@ -240,6 +240,86 @@ pub async fn login(
     }))
 }
 
+/// Change password request payload
+#[derive(Debug, Deserialize)]
+pub struct ChangePasswordRequest {
+    pub old_password: String,
+    pub new_password: String,
+}
+
+/// Change user's password (requires authentication)
+///
+/// # Endpoint
+///
+/// `POST /api/v1/auth/change-password`
+///
+/// # Authentication
+///
+/// **Required** - Must include valid JWT token.
+///
+/// # Request Body (JSON)
+///
+/// ```json
+/// {
+///   "old_password": "OldP@ssw0rd",
+///   "new_password": "NewP@ssw0rd"
+/// }
+/// ```
+///
+/// # Response (200 OK)
+///
+/// ```json
+/// {
+///   "message": "Password changed successfully"
+/// }
+/// ```
+///
+/// # Errors
+///
+/// - **400 Bad Request** - Weak password or validation error
+/// - **401 Unauthorized** - Invalid old password
+/// - **403 Forbidden** - Account inactive or locked
+///
+/// # Example
+///
+/// ```bash
+/// curl -X POST http://localhost:8080/api/v1/auth/change-password \
+///   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+///   -H "Content-Type: application/json" \
+///   -d '{
+///     "old_password": "OldP@ssw0rd",
+///     "new_password": "NewP@ssw0rd"
+///   }'
+/// ```
+#[tracing::instrument(skip(state, claims, payload))]
+pub async fn change_password(
+    State(state): State<crate::AppState>,
+    Extension(claims): Extension<Claims>,
+    Json(payload): Json<ChangePasswordRequest>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let user_id = Uuid::parse_str(&claims.user_id)
+        .map_err(|_| ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "INVALID_USER_ID",
+            "Invalid user ID format"
+        ))?;
+
+    state.user_service.change_password(
+        user_id,
+        &payload.old_password,
+        &payload.new_password,
+    )?;
+
+    tracing::info!(
+        user_id = %user_id,
+        "Password changed successfully"
+    );
+
+    Ok(Json(serde_json::json!({
+        "message": "Password changed successfully"
+    })))
+}
+
 // ============================================================================
 // Player Statistics Endpoints
 // ============================================================================
@@ -1907,5 +1987,170 @@ pub async fn close_enrollment(
         message: "Enrollment closed successfully".to_string(),
         turn_order,
         player_count,
+    }))
+}
+
+/// Kick player response
+#[derive(Debug, Serialize)]
+pub struct KickPlayerResponse {
+    pub game_id: Uuid,
+    pub player_email: String,
+    pub message: String,
+}
+
+/// Kick a player from the game (only creator can do this)
+///
+/// # Endpoint
+///
+/// `DELETE /api/v1/games/:game_id/players/:player_id`
+///
+/// # Authentication
+///
+/// **Required** - Must be the game creator.
+///
+/// # Path Parameters
+///
+/// - `game_id` - The game ID
+/// - `player_id` - The player's user ID to kick
+///
+/// # Response (200 OK)
+///
+/// ```json
+/// {
+///   "game_id": "550e8400-e29b-41d4-a716-446655440000",
+///   "player_email": "player@example.com",
+///   "message": "Player kicked successfully"
+/// }
+/// ```
+///
+/// # Errors
+///
+/// - **403 Forbidden** - Not the game creator or trying to kick creator
+/// - **404 Not Found** - Game or player not found
+/// - **410 Gone** - Enrollment already closed
+///
+/// # Example
+///
+/// ```bash
+/// curl -X DELETE http://localhost:8080/api/v1/games/550e8400-e29b-41d4-a716-446655440000/players/650e8400-e29b-41d4-a716-446655440001 \
+///   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+/// ```
+#[tracing::instrument(skip(state, claims))]
+pub async fn kick_player(
+    State(state): State<crate::AppState>,
+    Extension(claims): Extension<Claims>,
+    Path((game_id, player_id)): Path<(Uuid, Uuid)>,
+) -> Result<Json<KickPlayerResponse>, ApiError> {
+    let kicker_id = Uuid::parse_str(&claims.user_id)
+        .map_err(|_| ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "INVALID_USER_ID",
+            "Invalid user ID format"
+        ))?;
+
+    let player_email = state.game_service.kick_player(game_id, kicker_id, player_id)?;
+
+    tracing::info!(
+        game_id = %game_id,
+        kicker_id = %kicker_id,
+        player_id = %player_id,
+        player_email = %player_email,
+        "Player kicked successfully"
+    );
+
+    Ok(Json(KickPlayerResponse {
+        game_id,
+        player_email: player_email.clone(),
+        message: format!("Player {} kicked successfully", player_email),
+    }))
+}
+
+/// Participant info response
+#[derive(Debug, Serialize)]
+pub struct ParticipantInfo {
+    pub user_id: String,
+    pub email: String,
+    pub role: String,
+    pub joined_at: String,
+}
+
+/// Get participants response
+#[derive(Debug, Serialize)]
+pub struct GetParticipantsResponse {
+    pub game_id: Uuid,
+    pub participants: Vec<ParticipantInfo>,
+}
+
+/// Get all participants in a game with their roles
+///
+/// # Endpoint
+///
+/// `GET /api/v1/games/:game_id/participants`
+///
+/// # Authentication
+///
+/// **Required** - Must be a participant in the game.
+///
+/// # Path Parameters
+///
+/// - `game_id` - The game ID
+///
+/// # Response (200 OK)
+///
+/// ```json
+/// {
+///   "game_id": "550e8400-e29b-41d4-a716-446655440000",
+///   "participants": [
+///     {
+///       "user_id": "650e8400-e29b-41d4-a716-446655440001",
+///       "email": "creator@example.com",
+///       "role": "Creator",
+///       "joined_at": "2025-01-02T12:00:00Z"
+///     },
+///     {
+///       "user_id": "650e8400-e29b-41d4-a716-446655440002",
+///       "email": "player@example.com",
+///       "role": "Player",
+///       "joined_at": "2025-01-02T12:05:00Z"
+///     }
+///   ]
+/// }
+/// ```
+///
+/// # Errors
+///
+/// - **404 Not Found** - Game not found
+///
+/// # Example
+///
+/// ```bash
+/// curl -X GET http://localhost:8080/api/v1/games/550e8400-e29b-41d4-a716-446655440000/participants \
+///   -H "Authorization: Bearer YOUR_JWT_TOKEN"
+/// ```
+#[tracing::instrument(skip(state))]
+pub async fn get_participants(
+    State(state): State<crate::AppState>,
+    Path(game_id): Path<Uuid>,
+) -> Result<Json<GetParticipantsResponse>, ApiError> {
+    // Get game to access participants
+    let games = state.game_service.games.lock().unwrap();
+    let game = games.get(&game_id)
+        .ok_or_else(|| ApiError::game_not_found())?;
+
+    // Convert participants to response format
+    let participants: Vec<ParticipantInfo> = game
+        .participants
+        .values()
+        .map(|p| ParticipantInfo {
+            user_id: p.user_id.to_string(),
+            email: p.email.clone(),
+            role: format!("{:?}", p.role),
+            joined_at: p.joined_at.clone(),
+        })
+        .collect();
+
+    Ok(Json(GetParticipantsResponse {
+        game_id,
+        participants,
     }))
 }
