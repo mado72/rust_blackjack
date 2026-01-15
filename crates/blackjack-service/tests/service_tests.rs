@@ -50,7 +50,10 @@ fn test_service_config_from_env() {
 #[test]
 fn test_create_game_success() {
     let (service, user_service) = create_game_service(ServiceConfig::default());
-    let creator_id = user_service.get_user_by_email(&test_creator_email()).unwrap().id;
+    let creator_id = user_service
+        .get_user_by_email(&test_creator_email())
+        .unwrap()
+        .id;
 
     let result = service.create_game(creator_id, None);
     assert!(result.is_ok());
@@ -63,7 +66,10 @@ fn test_create_game_too_many_players() {
         max_players: 3,
     };
     let (service, user_service) = create_game_service(config);
-    let creator_id = user_service.get_user_by_email(&test_creator_email()).unwrap().id;
+    let creator_id = user_service
+        .get_user_by_email(&test_creator_email())
+        .unwrap()
+        .id;
 
     let game_id = service.create_game(creator_id, None).unwrap();
 
@@ -84,7 +90,10 @@ fn test_create_game_too_few_players() {
         max_players: 10,
     };
     let (service, user_service) = create_game_service(config);
-    let creator_id = user_service.get_user_by_email(&test_creator_email()).unwrap().id;
+    let creator_id = user_service
+        .get_user_by_email(&test_creator_email())
+        .unwrap()
+        .id;
 
     let game_id = service.create_game(creator_id, None).unwrap();
     assert!(game_id > Uuid::nil());
@@ -93,7 +102,10 @@ fn test_create_game_too_few_players() {
 #[test]
 fn test_draw_card() {
     let (service, user_service) = create_game_service(ServiceConfig::default());
-    let creator_id = user_service.get_user_by_email(&test_creator_email()).unwrap().id;
+    let creator_id = user_service
+        .get_user_by_email(&test_creator_email())
+        .unwrap()
+        .id;
 
     let game_id = service.create_game(creator_id, None).unwrap();
     service.enroll_player(game_id, "player1@test.com").unwrap();
@@ -119,7 +131,10 @@ fn test_draw_card_game_not_found() {
 #[test]
 fn test_set_ace_value() {
     let (service, user_service) = create_game_service(ServiceConfig::default());
-    let creator_id = user_service.get_user_by_email(&test_creator_email()).unwrap().id;
+    let creator_id = user_service
+        .get_user_by_email(&test_creator_email())
+        .unwrap()
+        .id;
 
     let game_id = service.create_game(creator_id, None).unwrap();
     service.enroll_player(game_id, "player1@test.com").unwrap();
@@ -147,7 +162,10 @@ fn test_set_ace_value() {
 #[test]
 fn test_get_game_state() {
     let (service, user_service) = create_game_service(ServiceConfig::default());
-    let creator_id = user_service.get_user_by_email(&test_creator_email()).unwrap().id;
+    let creator_id = user_service
+        .get_user_by_email(&test_creator_email())
+        .unwrap()
+        .id;
 
     let game_id = service.create_game(creator_id, None).unwrap();
     service.enroll_player(game_id, "player1@test.com").unwrap();
@@ -165,7 +183,10 @@ fn test_get_game_state() {
 #[test]
 fn test_finish_game() {
     let (service, user_service) = create_game_service(ServiceConfig::default());
-    let creator_id = user_service.get_user_by_email(&test_creator_email()).unwrap().id;
+    let creator_id = user_service
+        .get_user_by_email(&test_creator_email())
+        .unwrap()
+        .id;
 
     let game_id = service.create_game(creator_id, None).unwrap();
     service.enroll_player(game_id, "player1@test.com").unwrap();
@@ -187,8 +208,11 @@ fn test_concurrent_access() {
     use std::thread;
 
     let (game_service, user_service) = create_game_service(ServiceConfig::default());
-    let creator_id = user_service.get_user_by_email(&test_creator_email()).unwrap().id;
-    
+    let creator_id = user_service
+        .get_user_by_email(&test_creator_email())
+        .unwrap()
+        .id;
+
     let service = Arc::new(game_service);
 
     let game_id = service.create_game(creator_id, None).unwrap();
@@ -208,9 +232,7 @@ fn test_concurrent_access() {
             "player2@test.com".to_string()
         };
 
-        let handle = thread::spawn(move || {
-            service_clone.draw_card(game_id, &player)
-        });
+        let handle = thread::spawn(move || service_clone.draw_card(game_id, &player));
 
         handles.push(handle);
     }
@@ -230,7 +252,10 @@ fn test_concurrent_access() {
 #[test]
 fn test_draw_until_deck_empty() {
     let (service, user_service) = create_game_service(ServiceConfig::default());
-    let creator_id = user_service.get_user_by_email(&test_creator_email()).unwrap().id;
+    let creator_id = user_service
+        .get_user_by_email(&test_creator_email())
+        .unwrap()
+        .id;
 
     let game_id = service.create_game(creator_id, None).unwrap();
     service.enroll_player(game_id, "player1@test.com").unwrap();
@@ -238,19 +263,20 @@ fn test_draw_until_deck_empty() {
 
     // With turn management and dealer auto-play, the game will finish when all players complete
     // Let's just draw cards until game finishes or error occurs
-    for _ in 0..100 { // Limit iterations to avoid infinite loop
+    for _ in 0..100 {
+        // Limit iterations to avoid infinite loop
         let state = service.get_game_state(game_id).unwrap();
         if state.finished {
             break;
         }
-        
+
         // Try to draw for current player
         let current_player = if let Some(cp) = state.current_turn_player {
             cp
         } else {
             break;
         };
-        
+
         let result = service.draw_card(game_id, &current_player);
         if result.is_err() {
             // Player busted or game finished
@@ -260,7 +286,10 @@ fn test_draw_until_deck_empty() {
 
     // Check game state - should be finished (either by all players done or deck empty)
     let state = service.get_game_state(game_id).unwrap();
-    assert!(state.finished || state.cards_in_deck < 52, "Game should have progressed");
+    assert!(
+        state.finished || state.cards_in_deck < 52,
+        "Game should have progressed"
+    );
 }
 
 #[test]
@@ -268,13 +297,16 @@ fn test_enroll_player_already_enrolled() {
     use blackjack_service::GameError;
 
     let (service, user_service) = create_game_service(ServiceConfig::default());
-    let creator_id = user_service.get_user_by_email(&test_creator_email()).unwrap().id;
+    let creator_id = user_service
+        .get_user_by_email(&test_creator_email())
+        .unwrap()
+        .id;
 
     let game_id = service.create_game(creator_id, None).unwrap();
-    
+
     // Try to enroll creator again (creator is auto-enrolled at game creation)
     let result = service.enroll_player(game_id, &test_creator_email());
-    
+
     // Should get PlayerAlreadyEnrolled error, not CoreError
     assert!(matches!(result, Err(GameError::PlayerAlreadyEnrolled)));
 }

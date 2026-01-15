@@ -26,19 +26,22 @@
 //! BLACKJACK_SERVER_PORT=3000 cargo run -p blackjack-api --release
 //! ```
 
+use axum::Router;
+use axum::routing::{get, post, put};
+use blackjack_api::AppState;
 use blackjack_api::config::AppConfig;
 use blackjack_api::handlers::{
-    accept_invitation, create_game, create_invitation, decline_invitation, draw_card,
-    finish_game, get_game_results, get_game_state, get_pending_invitations, health_check,
-    login, ready_check, register_user, set_ace_value, stand, close_enrollment, enroll_player,
-    get_open_games,
+    accept_invitation, close_enrollment, create_game, create_invitation, decline_invitation,
+    draw_card, enroll_player, finish_game, get_game_results, get_game_state, get_open_games,
+    get_pending_invitations, health_check, login, ready_check, register_user, set_ace_value, stand,
 };
-use blackjack_api::middleware::{auth_middleware, rate_limit_middleware, version_deprecation_middleware};
+use blackjack_api::middleware::{
+    auth_middleware, rate_limit_middleware, version_deprecation_middleware,
+};
 use blackjack_api::rate_limiter::RateLimiter;
-use blackjack_api::AppState;
-use axum::routing::{get, post, put};
-use axum::Router;
-use blackjack_service::{GameService, ServiceConfig, UserService, InvitationService, InvitationConfig};
+use blackjack_service::{
+    GameService, InvitationConfig, InvitationService, ServiceConfig, UserService,
+};
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
@@ -129,7 +132,10 @@ async fn main() {
         .route("/api/v1/games", post(create_game))
         .route("/api/v1/games/open", get(get_open_games))
         .route("/api/v1/games/:game_id/enroll", post(enroll_player))
-        .route("/api/v1/games/:game_id/close-enrollment", post(close_enrollment))
+        .route(
+            "/api/v1/games/:game_id/close-enrollment",
+            post(close_enrollment),
+        )
         // Protected game endpoints (require JWT authentication)
         .route("/api/v1/games/:game_id", get(get_game_state))
         .route("/api/v1/games/:game_id/draw", post(draw_card))
@@ -138,7 +144,10 @@ async fn main() {
         .route("/api/v1/games/:game_id/finish", post(finish_game))
         .route("/api/v1/games/:game_id/results", get(get_game_results))
         // M7: Invitation endpoints
-        .route("/api/v1/games/:game_id/invitations", post(create_invitation))
+        .route(
+            "/api/v1/games/:game_id/invitations",
+            post(create_invitation),
+        )
         .route("/api/v1/invitations/pending", get(get_pending_invitations))
         .route("/api/v1/invitations/:id/accept", post(accept_invitation))
         .route("/api/v1/invitations/:id/decline", post(decline_invitation))
@@ -177,7 +186,5 @@ async fn main() {
 
     // Start the HTTP server
     // This blocks until the server is shut down (e.g., via SIGTERM/SIGINT)
-    axum::serve(listener, app)
-        .await
-        .expect("Server error");
+    axum::serve(listener, app).await.expect("Server error");
 }

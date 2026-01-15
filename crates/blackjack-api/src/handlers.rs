@@ -37,7 +37,7 @@ use axum::http::StatusCode;
 use axum::{Extension, Json};
 use blackjack_core::GameResult;
 use blackjack_service::{DrawCardResponse, GameStateResponse, PlayerStateResponse};
-use jsonwebtoken::{encode, EncodingKey, Header};
+use jsonwebtoken::{EncodingKey, Header, encode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -64,7 +64,7 @@ use uuid::Uuid;
 pub struct LoginRequest {
     /// User's email address
     pub email: String,
-    
+
     /// User's password
     pub password: String,
 }
@@ -90,7 +90,7 @@ pub struct LoginResponse {
     /// This token should be included in the Authorization header:
     /// `Authorization: Bearer <token>`
     pub token: String,
-    
+
     /// Token expiration time in seconds
     ///
     /// Calculated as `expiration_hours * 3600`
@@ -198,11 +198,13 @@ pub async fn login(
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, ApiError> {
     // Authenticate user with UserService
-    let user = state.user_service.login(&payload.email, &payload.password)?;
-    
+    let user = state
+        .user_service
+        .login(&payload.email, &payload.password)?;
+
     // Calculate expiration time
-    let expiration = chrono::Utc::now()
-        + chrono::Duration::hours(state.config.jwt.expiration_hours as i64);
+    let expiration =
+        chrono::Utc::now() + chrono::Duration::hours(state.config.jwt.expiration_hours as i64);
 
     // Generate JWT claims
     let claims = Claims {
@@ -249,10 +251,10 @@ pub async fn login(
 pub struct HealthResponse {
     /// Server health status
     pub status: String,
-    
+
     /// Server uptime in seconds since startup
     pub uptime_seconds: u64,
-    
+
     /// API version
     pub version: String,
 }
@@ -264,7 +266,7 @@ pub struct HealthResponse {
 pub struct ReadyResponse {
     /// Overall readiness status
     pub ready: bool,
-    
+
     /// Individual component health checks
     pub checks: HashMap<String, String>,
 }
@@ -389,13 +391,13 @@ pub struct CreateGameRequest {
 pub struct CreateGameResponse {
     /// Unique identifier for the created game
     pub game_id: Uuid,
-    
+
     /// The UUID of the game creator
     pub creator_id: Uuid,
-    
+
     /// Success message
     pub message: String,
-    
+
     /// Number of players in the game (includes creator)
     pub player_count: u32,
 }
@@ -485,25 +487,29 @@ pub async fn create_game(
     Json(payload): Json<CreateGameRequest>,
 ) -> Result<Json<CreateGameResponse>, ApiError> {
     // Parse user_id from JWT claims string to Uuid
-    let creator_id = Uuid::parse_str(&claims.user_id)
-        .map_err(|_| ApiError::new(
+    let creator_id = Uuid::parse_str(&claims.user_id).map_err(|_| {
+        ApiError::new(
             axum::http::StatusCode::BAD_REQUEST,
             "INVALID_USER_ID",
-            "Invalid user_id format in token"
-        ))?;
-    
+            "Invalid user_id format in token",
+        )
+    })?;
+
     // Verify that the user exists in the database
     // This ensures the JWT token references a valid, existing user
-    state.user_service.get_user(creator_id)
-        .map_err(|_| ApiError::new(
+    state.user_service.get_user(creator_id).map_err(|_| {
+        ApiError::new(
             axum::http::StatusCode::UNAUTHORIZED,
             "USER_NOT_FOUND",
-            "User from token does not exist. Token may be invalid or user was deleted."
-        ))?;
-    
+            "User from token does not exist. Token may be invalid or user was deleted.",
+        )
+    })?;
+
     let enrollment_timeout = payload.enrollment_timeout_seconds;
     // Creator email is automatically retrieved from user database by the service
-    let game_id = state.game_service.create_game(creator_id, enrollment_timeout)?;
+    let game_id = state
+        .game_service
+        .create_game(creator_id, enrollment_timeout)?;
 
     tracing::info!(
         game_id = %game_id,
@@ -711,7 +717,7 @@ pub async fn draw_card(
 pub struct SetAceValueRequest {
     /// UUID of the Ace card to modify
     pub card_id: Uuid,
-    
+
     /// Whether to count the Ace as 11 (true) or 1 (false)
     pub as_eleven: bool,
 }
@@ -776,9 +782,12 @@ pub async fn set_ace_value(
     Path(game_id): Path<Uuid>,
     Json(payload): Json<SetAceValueRequest>,
 ) -> Result<Json<PlayerStateResponse>, ApiError> {
-    let response = state
-        .game_service
-        .set_ace_value(game_id, &claims.email, payload.card_id, payload.as_eleven)?;
+    let response = state.game_service.set_ace_value(
+        game_id,
+        &claims.email,
+        payload.card_id,
+        payload.as_eleven,
+    )?;
 
     Ok(Json(response))
 }
@@ -909,7 +918,7 @@ pub async fn get_game_results(
 ) -> Result<Json<GameResult>, ApiError> {
     // Get game state to check if finished
     let game_state = state.game_service.get_game_state(game_id)?;
-    
+
     if !game_state.finished {
         return Err(ApiError::new(
             StatusCode::CONFLICT,
@@ -933,7 +942,7 @@ pub async fn get_game_results(
 pub struct RegisterRequest {
     /// User's email address
     pub email: String,
-    
+
     /// User's password (will be hashed)
     pub password: String,
 }
@@ -943,10 +952,10 @@ pub struct RegisterRequest {
 pub struct RegisterResponse {
     /// Unique user ID
     pub user_id: Uuid,
-    
+
     /// User's email
     pub email: String,
-    
+
     /// Success message
     pub message: String,
 }
@@ -994,8 +1003,10 @@ pub async fn register_user(
     State(state): State<crate::AppState>,
     Json(payload): Json<RegisterRequest>,
 ) -> Result<Json<RegisterResponse>, ApiError> {
-    let user_id = state.user_service.register(payload.email.clone(), payload.password)?;
-    
+    let user_id = state
+        .user_service
+        .register(payload.email.clone(), payload.password)?;
+
     tracing::info!(
         user_id = %user_id,
         email = %payload.email,
@@ -1025,13 +1036,13 @@ pub struct CreateInvitationRequest {
 pub struct CreateInvitationResponse {
     /// Invitation ID
     pub invitation_id: Uuid,
-    
+
     /// Invitee email
     pub invitee_email: String,
-    
+
     /// Expiration timestamp
     pub expires_at: String,
-    
+
     /// Success message
     pub message: String,
 }
@@ -1065,15 +1076,19 @@ pub async fn create_invitation(
 ) -> Result<Json<CreateInvitationResponse>, ApiError> {
     // Verify user is enrolled in the game
     let user_id = Uuid::parse_str(&claims.user_id).map_err(|_| {
-        ApiError::new(StatusCode::BAD_REQUEST, "INVALID_USER_ID", "Invalid user ID")
+        ApiError::new(
+            StatusCode::BAD_REQUEST,
+            "INVALID_USER_ID",
+            "Invalid user ID",
+        )
     })?;
 
-    // Get user 
+    // Get user
     let _user = state.user_service.get_user(user_id)?;
-    
+
     // Get game to check enrollment status and get expires_at
     let game_state = state.game_service.get_game_state(game_id)?;
-    
+
     // Check if game is still in enrollment phase
     // For now, we'll assume any game that's not finished is open (need to add enrollment_open flag to response)
     if game_state.finished {
@@ -1083,18 +1098,18 @@ pub async fn create_invitation(
             "Cannot invite players to a finished game",
         ));
     }
-    
+
     // Get the game enrollment expires_at time
     // This is a workaround - we should expose this in GameStateResponse
     let game_enrollment_expires_at = "2099-01-01T00:00:00Z".to_string(); // Placeholder - need to get from game
-    
+
     let invitation_id = state.invitation_service.create(
         game_id,
         user_id,
         payload.invitee_email.clone(),
         game_enrollment_expires_at,
     )?;
-    
+
     let invitation = state.invitation_service.get_invitation(invitation_id)?;
 
     tracing::info!(
@@ -1124,13 +1139,13 @@ pub struct PendingInvitationsResponse {
 pub struct InvitationInfo {
     /// Invitation ID
     pub id: Uuid,
-    
+
     /// Game ID
     pub game_id: Uuid,
-    
+
     /// Inviter user ID
     pub inviter_id: Uuid,
-    
+
     /// Expiration timestamp
     pub expires_at: String,
 }
@@ -1152,7 +1167,7 @@ pub async fn get_pending_invitations(
     Extension(claims): Extension<Claims>,
 ) -> Result<Json<PendingInvitationsResponse>, ApiError> {
     let invitations = state.invitation_service.get_pending_for_user(&claims.email);
-    
+
     // Service já retorna Vec<InvitationInfo>, mas precisamos converter para nosso tipo local
     let invitation_infos: Vec<InvitationInfo> = invitations
         .into_iter()
@@ -1178,7 +1193,7 @@ pub async fn get_pending_invitations(
 pub struct AcceptInvitationResponse {
     /// Game ID the user joined
     pub game_id: Uuid,
-    
+
     /// Success message
     pub message: String,
 }
@@ -1202,7 +1217,7 @@ pub async fn accept_invitation(
 ) -> Result<Json<AcceptInvitationResponse>, ApiError> {
     // Accept the invitation
     let invitation = state.invitation_service.accept(invitation_id)?;
-    
+
     // Verify the invitee email matches
     if invitation.invitee_email != claims.email {
         return Err(ApiError::new(
@@ -1211,10 +1226,12 @@ pub async fn accept_invitation(
             "This invitation is not for you",
         ));
     }
-    
+
     // Add player to game
-    state.game_service.add_player_to_game(invitation.game_id, claims.email.clone())?;
-    
+    state
+        .game_service
+        .add_player_to_game(invitation.game_id, claims.email.clone())?;
+
     // Mark invitation as accepted
     state.invitation_service.accept(invitation_id)?;
 
@@ -1264,9 +1281,9 @@ pub async fn decline_invitation(
             "This invitation is not for you",
         ));
     }
-    
+
     state.invitation_service.decline(invitation_id)?;
-    
+
     tracing::info!(
         invitation_id = %invitation_id,
         email = %claims.email,
@@ -1287,13 +1304,13 @@ pub async fn decline_invitation(
 pub struct StandResponse {
     /// Current player points
     pub points: u32,
-    
+
     /// Whether player is busted
     pub busted: bool,
-    
+
     /// Success message
     pub message: String,
-    
+
     /// Game automatically finished?
     pub game_finished: bool,
 }
@@ -1317,15 +1334,16 @@ pub async fn stand(
     Path(game_id): Path<Uuid>,
 ) -> Result<Json<StandResponse>, ApiError> {
     let game_state = state.game_service.stand(game_id, &claims.email)?;
-    
+
     // Get player info from response
-    let player_info = game_state.players.get(&claims.email)
-        .ok_or_else(|| ApiError::new(
+    let player_info = game_state.players.get(&claims.email).ok_or_else(|| {
+        ApiError::new(
             StatusCode::NOT_FOUND,
             "PLAYER_NOT_FOUND",
             "Player not found in game",
-        ))?;
-    
+        )
+    })?;
+
     tracing::info!(
         game_id = %game_id,
         email = %claims.email,
@@ -1351,7 +1369,7 @@ pub async fn stand(
 pub struct GetOpenGamesResponse {
     /// List of games in enrollment phase
     pub games: Vec<OpenGameInfo>,
-    
+
     /// Total number of open games
     pub count: usize,
 }
@@ -1361,22 +1379,22 @@ pub struct GetOpenGamesResponse {
 pub struct OpenGameInfo {
     /// Game ID
     pub game_id: Uuid,
-    
+
     /// Creator's user ID
     pub creator_id: Uuid,
-    
+
     /// Number of enrolled players
     pub enrolled_count: u64,
-    
+
     /// Maximum number of players allowed
     pub max_players: u64,
-    
+
     /// Enrollment timeout in seconds
     pub enrollment_timeout_seconds: u64,
-    
+
     /// Time remaining until enrollment closes (seconds)
     pub time_remaining_seconds: i64,
-    
+
     /// When enrollment closes (RFC3339 format)
     pub enrollment_closes_at: String,
 }
@@ -1430,7 +1448,7 @@ pub async fn get_open_games(
     Extension(_claims): Extension<Claims>,
 ) -> Result<Json<GetOpenGamesResponse>, ApiError> {
     let game_infos = state.game_service.get_open_games(None)?;
-    
+
     let games = game_infos
         .into_iter()
         .map(|info| OpenGameInfo {
@@ -1443,13 +1461,10 @@ pub async fn get_open_games(
             enrollment_closes_at: info.enrollment_closes_at,
         })
         .collect::<Vec<_>>();
-    
+
     let count = games.len();
 
-    tracing::info!(
-        count = count,
-        "Retrieved open games list"
-    );
+    tracing::info!(count = count, "Retrieved open games list");
 
     Ok(Json(GetOpenGamesResponse { games, count }))
 }
@@ -1466,13 +1481,13 @@ pub struct EnrollPlayerRequest {
 pub struct EnrollPlayerResponse {
     /// Game ID
     pub game_id: Uuid,
-    
+
     /// Player's email
     pub email: String,
-    
+
     /// Success message
     pub message: String,
-    
+
     /// Updated enrolled player count
     pub enrolled_count: u64,
 }
@@ -1552,7 +1567,7 @@ pub async fn enroll_player(
 ) -> Result<Json<EnrollPlayerResponse>, ApiError> {
     // Enroll the player
     state.game_service.enroll_player(game_id, &payload.email)?;
-    
+
     // Get updated game state to return enrolled count
     let game_state = state.game_service.get_game_state(game_id)?;
     let enrolled_count = game_state.players.len() as u64;
@@ -1583,13 +1598,13 @@ pub struct CloseEnrollmentRequest {
 pub struct CloseEnrollmentResponse {
     /// Game ID
     pub game_id: Uuid,
-    
+
     /// Success message
     pub message: String,
-    
+
     /// Order in which players will take turns
     pub turn_order: Vec<String>,
-    
+
     /// Total enrolled players
     pub player_count: usize,
 }

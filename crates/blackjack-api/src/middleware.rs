@@ -4,7 +4,7 @@ use axum::extract::{Request, State};
 use axum::http::HeaderValue;
 use axum::middleware::Next;
 use axum::response::Response;
-use jsonwebtoken::{decode, DecodingKey, Validation};
+use jsonwebtoken::{DecodingKey, Validation, decode};
 
 /// JWT authentication middleware
 ///
@@ -77,7 +77,7 @@ pub async fn auth_middleware(
     next: Next,
 ) -> Result<Response, ApiError> {
     let headers = request.headers();
-    
+
     // If no Authorization header, allow the request (public route)
     let auth_header = match headers.get("Authorization").and_then(|h| h.to_str().ok()) {
         Some(header) => header,
@@ -229,10 +229,9 @@ pub async fn version_deprecation_middleware(
     let sunset_date = chrono::Utc::now()
         + chrono::Duration::days((state.config.api.version_deprecation_months * 30) as i64);
 
-    response.headers_mut().insert(
-        "X-API-Deprecated",
-        HeaderValue::from_static("false"),
-    );
+    response
+        .headers_mut()
+        .insert("X-API-Deprecated", HeaderValue::from_static("false"));
 
     response.headers_mut().insert(
         "X-API-Sunset-Date",

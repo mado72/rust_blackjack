@@ -157,7 +157,10 @@ impl Player {
         for card in &self.cards_history {
             self.points += card.value;
             // Add 10 extra points if this Ace is counted as 11
-            if card.name == "A" && let Some(&is_eleven) = self.ace_values.get(&card.id) && is_eleven {
+            if card.name == "A"
+                && let Some(&is_eleven) = self.ace_values.get(&card.id)
+                && is_eleven
+            {
                 self.points += 10;
             }
         }
@@ -218,7 +221,9 @@ impl std::fmt::Display for GameError {
             GameError::NotAnAce => write!(f, "Can only change value of Ace cards"),
             GameError::NotPlayerTurn => write!(f, "It's not this player's turn"),
             GameError::PlayerNotActive => write!(f, "Player is not active (standing or busted)"),
-            GameError::PlayerAlreadyEnrolled => write!(f, "Player is already enrolled in this game"),
+            GameError::PlayerAlreadyEnrolled => {
+                write!(f, "Player is already enrolled in this game")
+            }
             GameError::EnrollmentNotClosed => write!(f, "Cannot play until enrollment is closed"),
             GameError::GameNotActive => write!(f, "Game is not active"),
         }
@@ -247,7 +252,11 @@ pub struct Game {
 impl Game {
     /// Creates a new game with the creator automatically enrolled
     #[tracing::instrument]
-    pub fn new(creator_id: Uuid, creator_email: String, enrollment_timeout_seconds: u64) -> Result<Self, GameError> {
+    pub fn new(
+        creator_id: Uuid,
+        creator_email: String,
+        enrollment_timeout_seconds: u64,
+    ) -> Result<Self, GameError> {
         // Validate email is not empty
         if creator_email.trim().is_empty() {
             return Err(GameError::InvalidEmail);
@@ -269,10 +278,9 @@ impl Game {
         // Auto-enroll creator as first player
         let mut players = HashMap::new();
         players.insert(creator_email.clone(), Player::new(creator_email.clone()));
-        
-        let mut turn_order = Vec::new();
-        turn_order.push(creator_email);
-        
+
+        let turn_order = vec![creator_email];
+
         let dealer = Player::new("dealer".to_string());
 
         Ok(Self {
@@ -312,7 +320,10 @@ impl Game {
             return Err(GameError::NotPlayerTurn);
         }
 
-        let player = self.players.get_mut(email).ok_or(GameError::PlayerNotInGame)?;
+        let player = self
+            .players
+            .get_mut(email)
+            .ok_or(GameError::PlayerNotInGame)?;
 
         if player.busted {
             return Err(GameError::PlayerAlreadyBusted);
@@ -368,7 +379,8 @@ impl Game {
             return Err(GameError::InvalidPlayerCount);
         }
 
-        self.players.insert(email.clone(), Player::new(email.clone()));
+        self.players
+            .insert(email.clone(), Player::new(email.clone()));
         self.turn_order.push(email);
 
         Ok(())
@@ -412,7 +424,8 @@ impl Game {
     /// Gets the enrollment expiration time
     pub fn get_enrollment_expires_at(&self) -> String {
         if let Ok(start_time) = chrono::DateTime::parse_from_rfc3339(&self.enrollment_start_time) {
-            let expires_at = start_time + chrono::Duration::seconds(self.enrollment_timeout_seconds as i64);
+            let expires_at =
+                start_time + chrono::Duration::seconds(self.enrollment_timeout_seconds as i64);
             return expires_at.to_rfc3339();
         }
         String::new()
@@ -440,7 +453,9 @@ impl Game {
         if self.turn_order.is_empty() {
             return None;
         }
-        self.turn_order.get(self.current_turn_index).map(|s| s.as_str())
+        self.turn_order
+            .get(self.current_turn_index)
+            .map(|s| s.as_str())
     }
 
     /// Advances to the next active player's turn
@@ -452,7 +467,7 @@ impl Game {
         let initial_index = self.current_turn_index;
         loop {
             self.current_turn_index = (self.current_turn_index + 1) % self.turn_order.len();
-            
+
             // Check if we've gone full circle
             if self.current_turn_index == initial_index {
                 break;
@@ -500,7 +515,10 @@ impl Game {
             return Err(GameError::NotPlayerTurn);
         }
 
-        let player = self.players.get_mut(email).ok_or(GameError::PlayerNotInGame)?;
+        let player = self
+            .players
+            .get_mut(email)
+            .ok_or(GameError::PlayerNotInGame)?;
 
         if player.state != PlayerState::Active {
             return Err(GameError::PlayerNotActive);
@@ -571,7 +589,10 @@ impl Game {
             return Err(GameError::GameAlreadyFinished);
         }
 
-        let player = self.players.get_mut(email).ok_or(GameError::PlayerNotInGame)?;
+        let player = self
+            .players
+            .get_mut(email)
+            .ok_or(GameError::PlayerNotInGame)?;
 
         // Verify the card exists in player's hand
         let card = player
@@ -627,7 +648,11 @@ impl Game {
         }
 
         // Dealer score (0 if busted)
-        let dealer_score = if self.dealer.busted { 0 } else { self.dealer.points };
+        let dealer_score = if self.dealer.busted {
+            0
+        } else {
+            self.dealer.points
+        };
 
         // Find winner(s) - players who beat the dealer
         for (email, player) in &self.players {
