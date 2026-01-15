@@ -1465,6 +1465,18 @@ pub async fn stand(
     Extension(claims): Extension<Claims>,
     Path(game_id): Path<Uuid>,
 ) -> Result<Json<StandResponse>, ApiError> {
+    // Validate it's the player's turn
+    let current_game_state = state.game_service.get_game_state(game_id)?;
+    if let Some(current_player) = current_game_state.current_turn_player
+        && current_player != claims.email
+    {
+        return Err(ApiError::new(
+            StatusCode::CONFLICT,
+            "NOT_YOUR_TURN",
+            "It's not your turn",
+        ));
+    }
+
     let game_state = state.game_service.stand(game_id, &claims.email)?;
 
     // Get player info from response

@@ -290,7 +290,7 @@ impl From<blackjack_service::GameError> for ApiError {
                 "No more cards in deck",
             ),
             GameError::GameAlreadyFinished => Self::new(
-                StatusCode::BAD_REQUEST,
+                StatusCode::CONFLICT,
                 "GAME_FINISHED",
                 "Game has already finished",
             ),
