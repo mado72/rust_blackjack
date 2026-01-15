@@ -4,8 +4,81 @@
 
 **Branch:** `feature/M8`  
 **Date:** January 15, 2026  
-**Implementation:** ✅ PHASE 1 COMPLETE | ✅ PHASE 2 COMPLETE | ✅ Dealer & Scoring Enhancements COMPLETE  
-**Tests:** 106 tests passing ✅ (60 integration tests in core)
+**Implementation:** ✅ M7 COMPLETE | ✅ Dealer & Scoring COMPLETE | 🔄 M8 IN PROGRESS (60%)  
+**Tests:** 90 tests passing ✅ (17 core unit + 60 core integration + 13 service)
+
+---
+
+## 🔐 MILESTONE 8 Progress (January 15, 2026)
+
+### Security Hardening Implementation - 60% COMPLETE
+
+**✅ COMPLETED (Core & Service Layers):**
+
+#### Password Security
+- ✅ Argon2id password hashing module (`password.rs`)
+  - OWASP recommended parameters (19 MiB memory, 2 iterations)
+  - Constant-time verification (timing attack protection)
+  - 8 unit tests passing
+- ✅ Email & password validation module (`validation.rs`)
+  - RFC 5322 email validation
+  - Password complexity (8+ chars, uppercase, lowercase, digit, special)
+  - 9 unit tests passing
+
+#### User Account Management
+- ✅ Enhanced User model with security fields:
+  - `is_active: bool` - account status
+  - `last_login: Option<String>` - login tracking
+- ✅ User methods: `update_last_login()`, `activate()`, `deactivate()`
+- ✅ Secure UserService implementation:
+  - `register()` with validation and Argon2id hashing
+  - `login()` with constant-time verification
+  - `change_password()` with old password verification
+  - All 13 service tests updated with strong passwords
+
+#### Access Control System
+- ✅ GameRole enum (Creator, Player, Spectator)
+- ✅ GamePermission enum (5 permissions)
+- ✅ GameParticipant struct with role tracking
+- ✅ Game access control methods:
+  - `can_user_perform()`, `is_creator()`, `is_participant()`
+  - `get_participant_role()`, `add_participant()`
+- ✅ Extended GameError with permission errors
+
+#### Documentation
+- ✅ Created SECURITY.md (comprehensive security guide)
+- ✅ Updated README.md (password requirements, RBAC, User model)
+- ✅ Updated PRD.md (M8 checkboxes and status)
+- ✅ Updated QUICK_REFERENCE.md (M8 security section)
+- ✅ Updated postman/README.md (security notice)
+
+**⏳ REMAINING TASKS:**
+
+#### GameService Access Control (Not Started)
+- [ ] Update `invite_player()` with permission checks
+- [ ] Implement `kick_player(game_id, kicker_id, player_id)` method
+- [ ] Update `close_enrollment()` to require creator permission
+- [ ] Update `finish_game()` to require creator permission
+
+#### API Layer Updates (Not Started)
+- [ ] Map new GameError variants to HTTP status codes
+- [ ] Update handlers with permission checks
+- [ ] Implement `POST /api/v1/auth/change-password` endpoint
+- [ ] Implement `DELETE /api/v1/games/:game_id/players/:player_id` (kick)
+- [ ] Implement `GET /api/v1/games/:game_id/participants` endpoint
+- [ ] Add `user_role` to game state responses
+
+#### Security Headers Middleware (Not Started)
+- [ ] Create security headers middleware
+- [ ] Add X-Content-Type-Options, X-Frame-Options, etc.
+
+#### Testing (Not Started)
+- [ ] Permission system tests
+- [ ] Account suspension tests
+- [ ] Password change tests
+- [ ] API security integration tests
+
+**Estimated Remaining Time:** 4-6 hours
 
 ---
 
