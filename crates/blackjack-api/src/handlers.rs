@@ -658,11 +658,18 @@ pub struct DrawCardRequest {
 ///   }
 ///   ```
 /// - **404 Not Found** - Game or player does not exist
-/// - **409 Conflict** - Not player's turn (M7)
+/// - **409 Conflict** - Not player's turn or enrollment not closed
 ///   ```json
 ///   {
 ///     "message": "It's not your turn",
 ///     "code": "NOT_YOUR_TURN",
+///     "status": 409
+///   }
+///   ```
+///   ```json
+///   {
+///     "message": "Cannot play until enrollment is closed",
+///     "code": "ENROLLMENT_NOT_CLOSED",
 ///     "status": 409
 ///   }
 ///   ```

@@ -726,8 +726,8 @@ Authorization: Bearer <jwt_token>
 **Errors:**
 - `401` - Unauthorized
 - `404` - Game or player not found
-- `409` - Not your turn (NOT_YOUR_TURN)
-- `410` - Deck is empty OR enrollment still open
+- `409` - Not your turn (NOT_YOUR_TURN) OR enrollment still open (ENROLLMENT_NOT_CLOSED)
+- `410` - Deck is empty
 
 #### POST /api/v1/games/:game_id/stand
 

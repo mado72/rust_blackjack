@@ -302,6 +302,11 @@ impl Game {
             return Err(GameError::DeckEmpty);
         }
 
+        // Check if enrollment is closed
+        if !self.enrollment_closed {
+            return Err(GameError::EnrollmentNotClosed);
+        }
+
         // Check if it's the player's turn
         if !self.can_player_act(email) {
             return Err(GameError::NotPlayerTurn);
@@ -483,6 +488,11 @@ impl Game {
     pub fn stand(&mut self, email: &str) -> Result<(), GameError> {
         if self.finished {
             return Err(GameError::GameAlreadyFinished);
+        }
+
+        // Check if enrollment is closed
+        if !self.enrollment_closed {
+            return Err(GameError::EnrollmentNotClosed);
         }
 
         // Check if it's the player's turn
