@@ -521,8 +521,12 @@ impl GameService {
             return Err(GameError::GameFull);
         }
 
-        // Add player
-        game.add_player(player_email.to_string())?;
+        // Add player - explicitly map core errors to service errors
+        game.add_player(player_email.to_string()).map_err(|e| match e {
+            CoreGameError::GameNotActive => GameError::GameNotActive,
+            CoreGameError::PlayerAlreadyEnrolled => GameError::PlayerAlreadyEnrolled,
+            other => GameError::CoreError(other),
+        })?;
 
         tracing::info!(
             game_id = %game_id,
