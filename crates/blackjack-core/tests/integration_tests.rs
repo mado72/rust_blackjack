@@ -560,7 +560,7 @@ fn test_draw_card_enrollment_open() {
     let mut game = Game::new(test_creator_id(), test_creator_email(), 300).unwrap();
     
     let result = game.draw_card(&test_creator_email());
-    assert_eq!(result, Err(GameError::NotPlayerTurn), "Cannot draw during enrollment phase");
+    assert_eq!(result, Err(GameError::EnrollmentNotClosed), "Cannot draw during enrollment phase");
 }
 
 #[test]
