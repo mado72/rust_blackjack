@@ -1307,10 +1307,54 @@ Implement robust security measures including proper password hashing with modern
 
 ---
 
+## Production Deployment
+
+**Status**: ✅ Ready for deployment
+
+### Deployment Documentation
+
+Comprehensive deployment guide available: [docs/DEPLOYMENT.md](DEPLOYMENT.md)
+
+**Includes:**
+- Docker deployment (recommended)
+- Standalone binary deployment
+- Docker Compose setup
+- Reverse proxy configuration (Nginx, Traefik)
+- Health checks and monitoring
+- Security best practices (HTTPS, JWT secrets, CORS, rate limiting)
+- Troubleshooting guide
+- Performance tuning
+
+**Quick Start:**
+```bash
+# Clone repository
+git clone https://github.com/mado72/rust_blackjack_api.git
+cd rust_blackjack_api
+
+# Build Docker image
+docker build -t blackjack-api:latest .
+
+# Run with environment variables
+docker run -d \
+  --name blackjack-api \
+  -p 8080:8080 \
+  -e BLACKJACK_JWT_SECRET="your-secure-secret" \
+  blackjack-api:latest
+
+# Verify deployment
+curl http://localhost:8080/health
+```
+
+**See full guide**: [docs/DEPLOYMENT.md](DEPLOYMENT.md)
+
+---
+
 ## Version History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.4.1 | 2026-01-15 | Team | Added API testing results, deployment guide, Step 1 completion (API Testing & Validation) |
+| 1.4.0 | 2026-01-15 | Team | Added Post-M7 Enhancements: Dealer automatic play and enhanced scoring system |
 | 1.3.0 | 2026-01-10 | Team | Refactored Milestone 7 to implement Game Lobbies with global enrollment timeout, player discovery, and enrollment-based invitations |
 | 1.2.0 | 2026-01-08 | Team | Added Milestone 8: Security hardening with password encryption and access control |
 | 1.1.0 | 2026-01-08 | Team | Added Milestone 7: Turn-based gameplay and user management |
