@@ -1,0 +1,301 @@
+### ============================================
+### INVITATION FLOW TEST - Complete PHASE 2A
+### Tests: Create → Invite → Accept → Decline
+### ============================================
+
+@base_url = http://localhost:8080
+@creator_email = creator@example.com
+@player1_email = player1@example.com
+@player2_email = player2@example.com
+@invitee_email = invitee@example.com
+
+# Variables populated from responses
+@game_id = 
+@creator_token = 
+@player1_token = 
+@invitee_token = 
+@invitation_id = 
+@invitation_id_2 = 
+
+### ============================================
+### STEP 1: User Registration
+### ============================================
+
+### Register Creator
+# @name registerCreator
+POST {{base_url}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{creator_email}}",
+  "password": "SecurePass123!"
+}
+
+###
+
+### Register Player 1 (will be enrolled)
+# @name registerPlayer1
+POST {{base_url}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{player1_email}}",
+  "password": "PlayerPass1!"
+}
+
+###
+
+### Register Player 2 (will be enrolled)
+# @name registerPlayer2
+POST {{base_url}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{player2_email}}",
+  "password": "PlayerPass2!"
+}
+
+###
+
+### Register Invitee (will receive invitation)
+# @name registerInvitee
+POST {{base_url}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{invitee_email}}",
+  "password": "InviteePass1!"
+}
+
+###
+
+### ============================================
+### STEP 2: Login All Users
+### ============================================
+
+### Login Creator
+# @name loginCreator
+POST {{base_url}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{creator_email}}",
+  "password": "SecurePass123!"
+}
+
+# Extract token: @creator_token = {{loginCreator.response.body.token}}
+
+###
+
+### Login Player 1
+# @name loginPlayer1
+POST {{base_url}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{player1_email}}",
+  "password": "PlayerPass1!"
+}
+
+# Extract token: @player1_token = {{loginPlayer1.response.body.token}}
+
+###
+
+### Login Invitee
+# @name loginInvitee
+POST {{base_url}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{invitee_email}}",
+  "password": "InviteePass1!"
+}
+
+# Extract token: @invitee_token = {{loginInvitee.response.body.token}}
+
+###
+
+### ============================================
+### STEP 3: Create Game with Enrollment
+### ============================================
+
+### Create Game (as Creator)
+# @name createGame
+POST {{base_url}}/api/v1/games
+Authorization: Bearer {{creator_token}}
+Content-Type: application/json
+
+{
+  "enrollment_timeout_seconds": 3600
+}
+
+# Extract game_id: @game_id = {{createGame.response.body.game_id}}
+
+###
+
+### Get Open Games (Verify game is listed)
+GET {{base_url}}/api/v1/games/open
+Authorization: Bearer {{creator_token}}
+Content-Type: application/json
+
+###
+
+### ============================================
+### STEP 4: Enroll Players
+### ============================================
+
+### Enroll Player 1
+POST {{base_url}}/api/v1/games/{{game_id}}/enroll
+Authorization: Bearer {{player1_token}}
+Content-Type: application/json
+
+###
+
+### Enroll Player 2
+POST {{base_url}}/api/v1/games/{{game_id}}/enroll
+Authorization: Bearer {{player2_token}}
+Content-Type: application/json
+
+###
+
+### ============================================
+### STEP 5: Send Invitations (PHASE 2A)
+### ============================================
+
+### Create Invitation - Creator invites invitee
+# @name createInvitation
+POST {{base_url}}/api/v1/games/{{game_id}}/invitations
+Authorization: Bearer {{creator_token}}
+Content-Type: application/json
+
+{
+  "invitee_email": "{{invitee_email}}"
+}
+
+# Extract invitation_id: @invitation_id = {{createInvitation.response.body.invitation_id}}
+
+###
+
+### Create Another Invitation - Player1 invites someone
+# @name createInvitation2
+POST {{base_url}}/api/v1/games/{{game_id}}/invitations
+Authorization: Bearer {{player1_token}}
+Content-Type: application/json
+
+{
+  "invitee_email": "another@example.com"
+}
+
+# Extract invitation_id: @invitation_id_2 = {{createInvitation2.response.body.invitation_id}}
+
+###
+
+### ============================================
+### STEP 6: Get Pending Invitations
+### ============================================
+
+### Get Pending Invitations for Invitee
+GET {{base_url}}/api/v1/invitations/pending
+Authorization: Bearer {{invitee_token}}
+Content-Type: application/json
+
+###
+
+### ============================================
+### STEP 7: Accept Invitation
+### ============================================
+
+### Accept Invitation - Invitee accepts
+# @name acceptInvitation
+POST {{base_url}}/api/v1/invitations/{{invitation_id}}/accept
+Authorization: Bearer {{invitee_token}}
+Content-Type: application/json
+
+###
+
+### Verify Invitee is Now Enrolled
+GET {{base_url}}/api/v1/games/{{game_id}}/participants
+Authorization: Bearer {{creator_token}}
+Content-Type: application/json
+
+###
+
+### ============================================
+### STEP 8: Decline Invitation
+### ============================================
+
+### Decline Second Invitation (for testing)
+POST {{base_url}}/api/v1/invitations/{{invitation_id_2}}/decline
+Authorization: Bearer {{invitee_token}}
+Content-Type: application/json
+
+###
+
+### ============================================
+### ERROR SCENARIOS
+### ============================================
+
+### ERROR: Create Invitation - Non-enrolled user tries to invite
+POST {{base_url}}/api/v1/games/{{game_id}}/invitations
+Authorization: Bearer {{invitee_token}}
+Content-Type: application/json
+
+{
+  "invitee_email": "random@example.com"
+}
+
+# Expected: 403 INSUFFICIENT_PERMISSIONS
+
+###
+
+### ERROR: Accept Invitation - Already accepted
+POST {{base_url}}/api/v1/invitations/{{invitation_id}}/accept
+Authorization: Bearer {{invitee_token}}
+Content-Type: application/json
+
+# Expected: 404 INVITATION_NOT_FOUND or status not Pending
+
+###
+
+### ERROR: Accept Invitation - Wrong user
+POST {{base_url}}/api/v1/invitations/{{invitation_id}}/accept
+Authorization: Bearer {{player1_token}}
+Content-Type: application/json
+
+# Expected: 403 NOT_INVITEE
+
+###
+
+### ERROR: Decline Invitation - Wrong user
+POST {{base_url}}/api/v1/invitations/{{invitation_id_2}}/decline
+Authorization: Bearer {{player1_token}}
+Content-Type: application/json
+
+# Expected: 403 NOT_INVITEE
+
+###
+
+### ============================================
+### CLEANUP & VERIFICATION
+### ============================================
+
+### Get Game State - Verify all players enrolled
+GET {{base_url}}/api/v1/games/{{game_id}}
+Authorization: Bearer {{creator_token}}
+Content-Type: application/json
+
+###
+
+### Close Enrollment - Creator closes
+POST {{base_url}}/api/v1/games/{{game_id}}/close-enrollment
+Authorization: Bearer {{creator_token}}
+Content-Type: application/json
+
+###
+
+### Get Game State - Verify enrollment closed
+GET {{base_url}}/api/v1/games/{{game_id}}
+Authorization: Bearer {{creator_token}}
+Content-Type: application/json
+
+###

@@ -26,6 +26,21 @@
 | `/api/v1/games/:game_id/enroll` | POST | ✅ | Required | `{game_id, email, message, enrolled_count}` |
 | `/api/v1/games/:game_id/close-enrollment` | POST | ✅ | Required | `{game_id, message, turn_order, player_count}` |
 
+### Game Invitations (PHASE 2A) ✅
+| Endpoint | Method | Status | Auth | Response |
+|----------|--------|--------|------|----------|
+| `/api/v1/games/:game_id/invitations` | POST | ✅ | Required | `{invitation_id, invitee_email, expires_at, message}` |
+| `/api/v1/invitations/pending` | GET | ✅ | Required | `{invitations: [...]}` |
+| `/api/v1/invitations/:id/accept` | POST | ✅ | Required | `{game_id, message}` |
+| `/api/v1/invitations/:id/decline` | POST | ✅ | Required | `{message}` |
+
+### Turn-Based Gameplay (PHASE 2B & 3) ✅
+| Endpoint | Method | Status | Auth | Response |
+|----------|--------|--------|------|----------|
+| `/api/v1/games/:game_id/draw` | POST | ✅ | Required | `{card, points, busted, game_finished}` |
+| `/api/v1/games/:game_id/stand` | POST | ✅ | Required | `{points, busted, message, game_finished}` |
+| `/api/v1/games/:game_id/ace` | PUT | ✅ | Required | `{points, busted, message}` |
+
 *POST /api/v1/games: Auth optional for now (creator_id is placeholder UUID)
 
 ---
@@ -39,6 +54,13 @@
 | `NOT_GAME_CREATOR` | 403 | Only creator can close enrollment |
 | `GAME_NOT_FOUND` | 404 | Game doesn't exist |
 | `UNAUTHORIZED` | 401 | Missing/invalid JWT token |
+| `INVITATION_NOT_FOUND` | 404 | Invitation doesn't exist |
+| `INVITATION_EXPIRED` | 410 | Invitation has expired |
+| `NOT_INVITEE` | 403 | User is not the invitation recipient |
+| `INSUFFICIENT_PERMISSIONS` | 403 | User lacks required permission |
+| `NOT_YOUR_TURN` | 409 | It's not the player's turn |
+| `ENROLLMENT_NOT_CLOSED` | 400 | Cannot play until enrollment closes |
+| `PLAYER_NOT_ACTIVE` | 400 | Player has already stood or busted |
 
 ---
 
@@ -93,6 +115,52 @@ curl -X POST http://localhost:8080/api/v1/games/{game_id}/close-enrollment \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
+### Send Invitation (PHASE 2A)
+```bash
+curl -X POST http://localhost:8080/api/v1/games/{game_id}/invitations \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{"invitee_email": "friend@example.com"}'
+```
+
+### Get Pending Invitations
+```bash
+curl http://localhost:8080/api/v1/invitations/pending \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### Accept Invitation
+```bash
+curl -X POST http://localhost:8080/api/v1/invitations/{invitation_id}/accept \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### Decline Invitation
+```bash
+curl -X POST http://localhost:8080/api/v1/invitations/{invitation_id}/decline \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### Draw Card (Turn-Based - PHASE 2B/3)
+```bash
+curl -X POST http://localhost:8080/api/v1/games/{game_id}/draw \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### Stand (Stop Drawing)
+```bash
+curl -X POST http://localhost:8080/api/v1/games/{game_id}/stand \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+### Change Ace Value
+```bash
+curl -X PUT http://localhost:8080/api/v1/games/{game_id}/ace \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{"card_id": "ace-card-uuid", "as_eleven": true}'
+```
+
 ---
 
 ## File Locations
@@ -104,6 +172,7 @@ curl -X POST http://localhost:8080/api/v1/games/{game_id}/close-enrollment \
 | Service | `crates/blackjack-service/src/lib.rs` (lines 440-580) |
 | Core | `crates/blackjack-core/src/lib.rs` |
 | Tests | `crates/blackjack-api/tests/api_tests.rs` |
+| Invitation Tests | `docs/postman/invitation_flow.http` (PHASE 2A) |
 
 ---
 
@@ -130,28 +199,28 @@ curl -X POST http://localhost:8080/api/v1/games/{game_id}/close-enrollment \
 
 ## Next Phase Checklist
 
-### PHASE 2A: Invitations (2-3h)
-- [ ] Verify invitation handlers exist
-- [ ] Add to router if missing
-- [ ] Test end-to-end
-- [ ] Update documentation
+### PHASE 2A: Invitations (2-3h) ✅ COMPLETE
+- [x] Verify invitation handlers exist
+- [x] Add to router if missing
+- [x] Test end-to-end
+- [x] Update documentation
 
-### PHASE 2B: Stand (1-2h)  
-- [ ] Requires PHASE 3 first
-- [ ] Implement turn validation
-- [ ] Add turn advancement
+### PHASE 2B: Stand (1-2h) ✅ COMPLETE
+- [x] Requires PHASE 3 first
+- [x] Implement turn validation
+- [x] Add turn advancement
 
-### PHASE 3: PlayerState (3-4h)
-- [ ] Create PlayerState enum
-- [ ] Update Player struct
-- [ ] Implement turn methods
-- [ ] Add auto-finish logic
+### PHASE 3: PlayerState (3-4h) ✅ COMPLETE
+- [x] Create PlayerState enum
+- [x] Update Player struct
+- [x] Implement turn methods
+- [x] Add auto-finish logic
 
-### PHASE 4: Tests (4-6h)
-- [ ] Add core tests
-- [ ] Add service tests
-- [ ] Add API tests
-- [ ] Update PRD
+### PHASE 4: Tests (4-6h) ✅ COMPLETE
+- [x] Add core tests
+- [x] Add service tests
+- [x] Add API tests
+- [x] Update PRD
 
 ---
 
@@ -163,10 +232,13 @@ docs/
 ├── README.md ......................... Project overview
 ├── next-steps.md ..................... Session continuation
 ├── PHASE1_COMPLETION.md .............. Full PHASE 1 details
-├── PHASE2_ROADMAP.md ................. PHASE 2-4 planning
-├── DOCUMENTATION_UPDATE.md ........... This update summary
-├── QUICK_REFERENCE.md ............... This file
+├── PHASE2A_COMPLETION.md ............. PHASE 2A completion
+├── PHASE3_COMPLETION.md .............. PHASE 3 completion
+├── MILESTONE7_FINAL_COMPLETION.md .... ✅ M7 FINAL REPORT
+├── QUICK_REFERENCE.md ................ This file
 └── postman/ .......................... API testing
+    ├── invitation_flow.http ............. PHASE 2A tests
+    ├── complete_game_flow.http .......... Full game flow
     ├── Blackjack_API.postman_collection.json
     └── Blackjack_API_Local.postman_environment.json
 ```
@@ -294,12 +366,13 @@ RUST_LOG=trace cargo test --workspace -- --nocapture
 ## Milestone 7 Progress Tracker
 
 - [x] PHASE 1: Enrollment Endpoints (100% - Jan 10, 2026)
-- [ ] PHASE 2A: Invitations (0% - Planned)
-- [ ] PHASE 2B: Stand (0% - Depends on Phase 3)
-- [ ] PHASE 3: Turn Management (0% - Planned)
-- [ ] PHASE 4: Tests & Docs (0% - Planned)
+- [x] PHASE 2A: Invitations (100% - Jan 16, 2026) ✅
+- [x] PHASE 2B: Stand (100% - Jan 16, 2026) ✅
+- [x] PHASE 3: Turn Management (100% - Jan 16, 2026) ✅
+- [x] PHASE 4: Tests & Docs (100% - Jan 16, 2026) ✅
 
-**Overall Progress:** 25% (1 of 4 phases complete)
+**Overall Progress:** 100% (4 of 4 phases complete) 🎉
+**Status:** ✅ **MILESTONE 7 COMPLETE - PRODUCTION READY**
 
 ---
 
