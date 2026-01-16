@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface CardProps {
+export interface CardProps {
   suit: string;
   rank: string;
 }
@@ -14,4 +14,5 @@ const Card: React.FC<CardProps> = ({ suit, rank }) => {
   );
 };
 
+export { Card };
 export default Card;

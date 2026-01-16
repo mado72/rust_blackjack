@@ -62,4 +62,5 @@ const useGame = (gameId: string, userId: string) => {
     };
 };
 
+export { useGame };
 export default useGame;

@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
-import { registerUser } from '../api/auth';
-import { useHistory } from 'react-router-dom';
+import { register } from '../api/auth';
+import { useNavigate } from 'react-router-dom';
 
 const RegisterPage: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
-    const history = useHistory();
+    const navigate = useNavigate();
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
 
         try {
-            await registerUser({ email, password });
-            history.push('/login'); // Redirect to login after successful registration
+            await register(email, password);
+            navigate('/login'); // Redirect to login after successful registration
         } catch (err) {
             setError('Registration failed. Please try again.');
         }

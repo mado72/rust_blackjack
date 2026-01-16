@@ -3,6 +3,11 @@ import { Game, GameResult, PlayerState } from '../types/game';
 
 const API_BASE_URL = 'http://localhost:8080/api/v1/games';
 
+export const getOpenGames = async (): Promise<Game[]> => {
+    const response = await axios.get(`${API_BASE_URL}`);
+    return response.data;
+};
+
 export const createGame = async (emails: string[]): Promise<string> => {
     const response = await axios.post(`${API_BASE_URL}`, { emails });
     return response.data.game_id;
@@ -31,4 +36,8 @@ export const finishGame = async (gameId: string): Promise<GameResult> => {
 export const getGameResults = async (gameId: string): Promise<GameResult> => {
     const response = await axios.get(`${API_BASE_URL}/${gameId}/results`);
     return response.data;
+};
+
+export const joinGame = async (gameId: string): Promise<void> => {
+    await axios.post(`${API_BASE_URL}/${gameId}/join`);
 };
