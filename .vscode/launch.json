@@ -4,70 +4,29 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        // ============================================
+        // 🚀 FULL STACK CONFIGURATIONS
+        // ============================================
         {
-            "name": "Debug unit tests in library 'blackjack_core'",
+            "name": "🚀 Launch Full Stack (Backend + Frontend)",
             "type": "lldb",
             "request": "launch",
             "cargo": {
                 "args": [
-                    "test",
-                    "--package=blackjack-core",
-                    "--manifest-path=api/Cargo.toml"
-                ]
-            }
-        },
-        {
-            "name": "Debug integration test 'integration_tests'",
-            "type": "lldb",
-            "request": "launch",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--test=integration_tests",
-                    "--package=blackjack-core",
-                    "--manifest-path=api/Cargo.toml"
-                ]
-            }
-        },
-        {
-            "name": "Debug unit tests in library 'blackjack_service'",
-            "type": "lldb",
-            "request": "launch",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--package=blackjack-service",
-                    "--manifest-path=api/Cargo.toml"
-                ]
-            }
-        },
-        {
-            "name": "Debug integration test 'service_tests'",
-            "type": "lldb",
-            "request": "launch",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--test=service_tests",
-                    "--package=blackjack-service",
-                    "--manifest-path=api/Cargo.toml"
-                ]
-            }
-        },
-        {
-            "name": "Debug unit tests in library 'blackjack_api'",
-            "type": "lldb",
-            "request": "launch",
-            "cargo": {
-                "args": [
-                    "test",
+                    "run",
+                    "--bin=blackjack-api",
                     "--package=blackjack-api",
                     "--manifest-path=api/Cargo.toml"
                 ]
-            }
+            },
+            "args": [],
+            "preLaunchTask": "Start Frontend Dev Server"
         },
+        // ============================================
+        // 🦀 BACKEND (RUST) CONFIGURATIONS
+        // ============================================
         {
-            "name": "Debug executable 'blackjack-api'",
+            "name": "🦀 Launch Backend API (blackjack-api)",
             "type": "lldb",
             "request": "launch",
             "cargo": {
@@ -81,33 +40,7 @@
             "args": []
         },
         {
-            "name": "Debug unit tests in executable 'blackjack-api'",
-            "type": "lldb",
-            "request": "launch",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--bin=blackjack-api",
-                    "--package=blackjack-api",
-                    "--manifest-path=api/Cargo.toml"
-                ]
-            }
-        },
-        {
-            "name": "Debug integration test 'api_tests'",
-            "type": "lldb",
-            "request": "launch",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--test=api_tests",
-                    "--package=blackjack-api",
-                    "--manifest-path=api/Cargo.toml"
-                ]
-            }
-        },
-        {
-            "name": "Debug executable 'blackjack-cli'",
+            "name": "🦀 Launch CLI (blackjack-cli)",
             "type": "lldb",
             "request": "launch",
             "cargo": {
@@ -120,8 +53,137 @@
             },
             "args": []
         },
+        // ============================================
+        // ⚛️ FRONTEND (REACT) CONFIGURATIONS
+        // ============================================
         {
-            "name": "Debug unit tests in executable 'blackjack-cli'",
+            "name": "⚛️ Launch Frontend in Chrome",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:3000",
+            "webRoot": "${workspaceFolder}/frontend/src",
+            "sourceMaps": true,
+            "sourceMapPathOverrides": {
+                "webpack:///src/*": "${webRoot}/*"
+            },
+            "preLaunchTask": "Start Frontend Dev Server"
+        },
+        {
+            "name": "⚛️ Launch Frontend in Edge",
+            "type": "msedge",
+            "request": "launch",
+            "url": "http://localhost:3000",
+            "webRoot": "${workspaceFolder}/frontend/src",
+            "sourceMaps": true,
+            "sourceMapPathOverrides": {
+                "webpack:///src/*": "${webRoot}/*"
+            },
+            "preLaunchTask": "Start Frontend Dev Server"
+        },
+        {
+            "name": "⚛️ Attach to Frontend (Chrome)",
+            "type": "chrome",
+            "request": "attach",
+            "port": 9222,
+            "webRoot": "${workspaceFolder}/frontend/src",
+            "sourceMaps": true,
+            "sourceMapPathOverrides": {
+                "webpack:///src/*": "${webRoot}/*"
+            }
+        },
+        // ============================================
+        // 🧪 BACKEND TEST CONFIGURATIONS
+        // ============================================
+        {
+            "name": "🧪 Debug unit tests in library 'blackjack_core'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--package=blackjack-core",
+                    "--manifest-path=api/Cargo.toml"
+                ]
+            }
+        },
+        {
+            "name": "🧪 Debug integration test 'integration_tests'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=integration_tests",
+                    "--package=blackjack-core",
+                    "--manifest-path=api/Cargo.toml"
+                ]
+            }
+        },
+        {
+            "name": "🧪 Debug unit tests in library 'blackjack_service'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--package=blackjack-service",
+                    "--manifest-path=api/Cargo.toml"
+                ]
+            }
+        },
+        {
+            "name": "🧪 Debug integration test 'service_tests'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=service_tests",
+                    "--package=blackjack-service",
+                    "--manifest-path=api/Cargo.toml"
+                ]
+            }
+        },
+        {
+            "name": "🧪 Debug unit tests in library 'blackjack_api'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--package=blackjack-api",
+                    "--manifest-path=api/Cargo.toml"
+                ]
+            }
+        },
+        {
+            "name": "🧪 Debug unit tests in executable 'blackjack-api'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--bin=blackjack-api",
+                    "--package=blackjack-api",
+                    "--manifest-path=api/Cargo.toml"
+                ]
+            }
+        },
+        {
+            "name": "🧪 Debug integration test 'api_tests'",
+            "type": "lldb",
+            "request": "launch",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--test=api_tests",
+                    "--package=blackjack-api",
+                    "--manifest-path=api/Cargo.toml"
+                ]
+            }
+        },
+        {
+            "name": "🧪 Debug unit tests in executable 'blackjack-cli'",
             "type": "lldb",
             "request": "launch",
             "cargo": {
