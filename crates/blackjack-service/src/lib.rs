@@ -847,7 +847,18 @@ impl GameService {
         let mut games = self.games.lock().unwrap();
         let game = games.get_mut(&game_id).ok_or(GameError::GameNotFound)?;
 
-        let card = game.draw_card(&email)?;
+        // Map core errors to service errors for proper HTTP status codes
+        let card = game.draw_card(&email).map_err(|e| match e {
+            CoreGameError::EnrollmentNotClosed => GameError::EnrollmentNotClosed,
+            CoreGameError::NotPlayerTurn => GameError::NotPlayerTurn,
+            CoreGameError::PlayerNotActive => GameError::PlayerNotActive,
+            CoreGameError::GameAlreadyFinished => GameError::GameAlreadyFinished,
+            CoreGameError::DeckEmpty => GameError::DeckEmpty,
+            CoreGameError::PlayerAlreadyBusted => GameError::PlayerAlreadyBusted,
+            CoreGameError::PlayerNotInGame => GameError::PlayerNotInGame,
+            other => GameError::CoreError(other),
+        })?;
+        
         let player = game.players.get(&email).ok_or(GameError::PlayerNotInGame)?;
 
         tracing::debug!(
