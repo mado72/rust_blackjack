@@ -34,7 +34,7 @@ use blackjack_api::handlers::{
     accept_invitation, change_password, close_enrollment, create_game, create_invitation,
     decline_invitation, draw_card, enroll_player, finish_game, get_game_results, get_game_state,
     get_open_games, get_participants, get_pending_invitations, get_player_stats, health_check,
-    kick_player, login, ready_check, register_user, set_ace_value, stand,
+    kick_player, login, logout, ready_check, register_user, set_ace_value, stand,
 };
 use blackjack_api::middleware::{
     auth_middleware, rate_limit_middleware, security_headers_middleware,
@@ -130,6 +130,7 @@ async fn main() {
         // M7: User authentication endpoints
         .route("/api/v1/auth/register", post(register_user))
         .route("/api/v1/auth/login", post(login))
+        .route("/api/v1/auth/logout", post(logout))
         // Player statistics endpoints
         .route("/api/v1/players/me/stats", get(get_player_stats))
         // M7: Game enrollment endpoints
