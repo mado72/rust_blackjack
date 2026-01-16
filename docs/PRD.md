@@ -1333,10 +1333,297 @@ curl http://localhost:8080/health
 
 ---
 
-## Milestone 9: WebSocket Real-time Updates
+## Milestone 9: React Frontend Application
 
 **Status:** `planned`  
 **Dependencies:** Milestones 1-8  
+**Estimated Effort:** 20-25 hours
+
+### Overview
+
+Develop a modern React-based frontend application that consumes the Blackjack REST API, providing an intuitive user interface for player registration, game creation, lobby management, turn-based gameplay, and real-time game state visualization.
+
+### Project Structure
+
+```
+frontend/
+├── public/
+│   ├── index.html
+│   └── favicon.ico
+├── src/
+│   ├── api/
+│   │   ├── auth.ts          # Authentication API calls
+│   │   ├── games.ts         # Game management API calls
+│   │   ├── invitations.ts   # Invitation API calls
+│   │   └── client.ts        # Axios client configuration
+│   ├── components/
+│   │   ├── auth/
+│   │   │   ├── LoginForm.tsx
+│   │   │   ├── RegisterForm.tsx
+│   │   │   └── PasswordChange.tsx
+│   │   ├── game/
+│   │   │   ├── GameBoard.tsx
+│   │   │   ├── PlayerHand.tsx
+│   │   │   ├── DealerHand.tsx
+│   │   │   ├── GameControls.tsx
+│   │   │   └── GameResults.tsx
+│   │   ├── lobby/
+│   │   │   ├── GameLobby.tsx
+│   │   │   ├── OpenGames.tsx
+│   │   │   ├── CreateGame.tsx
+│   │   │   └── Invitations.tsx
+│   │   └── shared/
+│   │       ├── Card.tsx
+│   │       ├── Header.tsx
+│   │       ├── Navigation.tsx
+│   │       └── LoadingSpinner.tsx
+│   ├── contexts/
+│   │   └── AuthContext.tsx   # JWT token management
+│   ├── hooks/
+│   │   ├── useAuth.ts
+│   │   ├── useGame.ts
+│   │   └── usePolling.ts     # Polling for game state updates
+│   ├── pages/
+│   │   ├── HomePage.tsx
+│   │   ├── LoginPage.tsx
+│   │   ├── RegisterPage.tsx
+│   │   ├── LobbyPage.tsx
+│   │   └── GamePage.tsx
+│   ├── types/
+│   │   ├── api.ts           # API response types
+│   │   ├── game.ts          # Game state types
+│   │   └── user.ts          # User types
+│   ├── utils/
+│   │   ├── validators.ts
+│   │   └── formatters.ts
+│   ├── App.tsx
+│   ├── index.tsx
+│   └── index.css
+├── package.json
+├── tsconfig.json
+├── vite.config.ts
+└── README.md
+```
+
+### Tasks
+
+#### 9.1 Project Setup (2-3 hours)
+
+- [ ] Initialize React project with Vite + TypeScript
+- [ ] Configure development environment:
+  - [ ] ESLint and Prettier
+  - [ ] Path aliases (@components, @api, etc.)
+  - [ ] Environment variables (.env.development, .env.production)
+- [ ] Install core dependencies:
+  - [ ] axios (HTTP client)
+  - [ ] react-router-dom (routing)
+  - [ ] @tanstack/react-query (data fetching/caching)
+  - [ ] zustand or Context API (state management)
+- [ ] Install UI dependencies:
+  - [ ] Tailwind CSS or Material-UI
+  - [ ] react-icons
+  - [ ] classnames
+- [ ] Configure proxy to backend API (localhost:8080)
+- [ ] Set up monorepo integration:
+  - [ ] Update root workspace documentation
+  - [ ] Configure concurrent dev script (run frontend + backend)
+
+#### 9.2 API Client Layer (3-4 hours)
+
+- [ ] Implement `client.ts`:
+  - [ ] Axios instance with base URL configuration
+  - [ ] Request interceptor for JWT token injection
+  - [ ] Response interceptor for error handling
+  - [ ] Automatic token refresh logic
+- [ ] Implement `auth.ts`:
+  - [ ] `register(email, password): Promise<void>`
+  - [ ] `login(email, password): Promise<{token: string}>`
+  - [ ] `changePassword(oldPassword, newPassword): Promise<void>`
+- [ ] Implement `games.ts`:
+  - [ ] `createGame(enrollmentTimeout?: number): Promise<{game_id: string}>`
+  - [ ] `getOpenGames(): Promise<GameInfo[]>`
+  - [ ] `enrollInGame(gameId: string, email: string): Promise<void>`
+  - [ ] `closeEnrollment(gameId: string): Promise<void>`
+  - [ ] `getGameState(gameId: string): Promise<GameState>`
+  - [ ] `drawCard(gameId: string): Promise<DrawCardResponse>`
+  - [ ] `stand(gameId: string): Promise<void>`
+  - [ ] `getResults(gameId: string): Promise<GameResult>`
+- [ ] Implement `invitations.ts`:
+  - [ ] `createInvitation(gameId: string, email: string): Promise<void>`
+  - [ ] `getPendingInvitations(): Promise<InvitationInfo[]>`
+  - [ ] `acceptInvitation(invitationId: string): Promise<void>`
+  - [ ] `declineInvitation(invitationId: string): Promise<void>`
+- [ ] Add TypeScript types for all API responses
+
+#### 9.3 Authentication & User Management (3-4 hours)
+
+- [ ] Create `AuthContext.tsx`:
+  - [ ] JWT token storage (localStorage)
+  - [ ] Current user state
+  - [ ] Login/logout/register methods
+  - [ ] Protected route wrapper
+- [ ] Implement `LoginPage.tsx`:
+  - [ ] Email/password form with validation
+  - [ ] Error message display
+  - [ ] Redirect to lobby on success
+- [ ] Implement `RegisterPage.tsx`:
+  - [ ] Email/password form with complexity requirements
+  - [ ] Real-time password strength indicator
+  - [ ] Error handling (weak password, email exists)
+- [ ] Implement `PasswordChange.tsx`:
+  - [ ] Old password + new password form
+  - [ ] Validation and error display
+  - [ ] Success confirmation
+
+#### 9.4 Game Lobby System (4-5 hours)
+
+- [ ] Implement `LobbyPage.tsx`:
+  - [ ] Tabbed interface: Open Games / My Invitations / Create Game
+  - [ ] Auto-refresh open games list (polling every 5 seconds)
+- [ ] Implement `OpenGames.tsx`:
+  - [ ] Display list of open games with:
+    - [ ] Creator email
+    - [ ] Enrolled player count (X/10)
+    - [ ] Time remaining for enrollment
+    - [ ] "Join Game" button
+  - [ ] Enroll action with confirmation
+  - [ ] Empty state when no games available
+- [ ] Implement `CreateGame.tsx`:
+  - [ ] Form to create new game
+  - [ ] Enrollment timeout slider (60-600 seconds)
+  - [ ] Auto-redirect to game page on creation
+- [ ] Implement `Invitations.tsx`:
+  - [ ] List pending invitations with game details
+  - [ ] Accept/Decline buttons
+  - [ ] Expired invitation indicator
+  - [ ] Auto-refresh (polling every 10 seconds)
+
+#### 9.5 Game Board & Gameplay (5-6 hours)
+
+- [ ] Implement `GamePage.tsx`:
+  - [ ] Layout: Dealer hand (top), Player hands (bottom), Controls (center)
+  - [ ] Display game state (enrollment phase vs. gameplay phase)
+  - [ ] Turn indicator (highlight current player)
+  - [ ] Auto-refresh game state (polling every 2 seconds during gameplay)
+- [ ] Implement `GameBoard.tsx`:
+  - [ ] Enrollment countdown timer
+  - [ ] "Close Enrollment" button (creator only)
+  - [ ] Player list with roles (Creator badge, Player count)
+  - [ ] Turn order display after enrollment closes
+- [ ] Implement `PlayerHand.tsx`:
+  - [ ] Display player's cards with visual representation
+  - [ ] Show current points total
+  - [ ] Bust indicator
+  - [ ] Standing indicator
+  - [ ] Ace value toggle buttons (11 ↔ 1)
+- [ ] Implement `DealerHand.tsx`:
+  - [ ] Display dealer's cards
+  - [ ] Show dealer points
+  - [ ] Bust indicator
+- [ ] Implement `GameControls.tsx`:
+  - [ ] "Draw Card" button (enabled only on player's turn)
+  - [ ] "Stand" button (enabled only on player's turn)
+  - [ ] Disabled state with tooltip (not your turn)
+  - [ ] "Invite Player" button (enrollment phase only)
+- [ ] Implement `GameResults.tsx`:
+  - [ ] Display final results after game finishes
+  - [ ] Show each player's outcome (Won/Lost/Push/Busted)
+  - [ ] Highlight winner(s)
+  - [ ] "New Game" button to return to lobby
+
+#### 9.6 UI Components & Polish (3-4 hours)
+
+- [ ] Implement `Card.tsx`:
+  - [ ] Visual card representation (suit + value)
+  - [ ] Card animations (draw, flip)
+  - [ ] Responsive sizing
+- [ ] Implement `Header.tsx`:
+  - [ ] App title and logo
+  - [ ] User email display
+  - [ ] Logout button
+- [ ] Implement `Navigation.tsx`:
+  - [ ] Lobby / Active Games navigation
+  - [ ] Current page indicator
+- [ ] Implement `LoadingSpinner.tsx`:
+  - [ ] Centered spinner for async operations
+  - [ ] Overlay variant for page transitions
+- [ ] Add error boundary for global error handling
+- [ ] Implement toast notifications for actions:
+  - [ ] Game created
+  - [ ] Invitation sent/accepted/declined
+  - [ ] Card drawn
+  - [ ] Game finished
+- [ ] Add responsive design (mobile, tablet, desktop breakpoints)
+- [ ] Add dark mode toggle (optional)
+
+#### 9.7 Testing & Documentation (2-3 hours)
+
+- [ ] Write unit tests for:
+  - [ ] API client functions
+  - [ ] Custom hooks (useAuth, useGame)
+  - [ ] Form validation logic
+- [ ] Write component tests with React Testing Library:
+  - [ ] LoginForm submission
+  - [ ] GameBoard enrollment flow
+  - [ ] GameControls turn validation
+- [ ] Create E2E test scenarios (Playwright or Cypress):
+  - [ ] User registration → login → create game → enroll → play → finish
+  - [ ] Invitation flow (invite → accept → join game)
+- [ ] Document frontend setup in `frontend/README.md`:
+  - [ ] Installation steps
+  - [ ] Development server setup
+  - [ ] Environment variables
+  - [ ] Build and deployment
+- [ ] Update root `README.md` with frontend information
+- [ ] Create user guide with screenshots
+
+### Acceptance Criteria
+
+- ✅ Users can register, login, and change password through UI
+- ✅ Users can create new games with custom enrollment timeout
+- ✅ Users can browse and join open games from lobby
+- ✅ Users can send and receive game invitations
+- ✅ Game state updates automatically via polling (no manual refresh needed)
+- ✅ Players can only act during their turn (UI enforces turn order)
+- ✅ Players can draw cards, stand, and change Ace values
+- ✅ Game results display correctly after auto-finish
+- ✅ UI is responsive on mobile, tablet, and desktop
+- ✅ All error states display user-friendly messages
+- ✅ Frontend runs concurrently with backend in development
+- ✅ Production build optimized and deployable
+- ✅ All tests pass (unit, component, E2E)
+- ✅ Documentation complete and clear
+
+### Technical Notes
+
+**Technologies:**
+- React 18+ with TypeScript
+- Vite for build tooling
+- Tailwind CSS or Material-UI for styling
+- React Query for API state management
+- React Router for navigation
+- Axios for HTTP requests
+
+**API Integration:**
+- Use polling (setInterval) for real-time updates (WebSocket upgrade in M10)
+- Implement optimistic updates where appropriate
+- Cache API responses to reduce backend load
+
+**Deployment:**
+- Build static assets with `npm run build`
+- Serve via Nginx, Vercel, or Netlify
+- Configure CORS on backend to allow frontend origin
+
+**Future WebSocket Integration (M10):**
+- Current polling approach will be replaced with WebSocket push notifications
+- Frontend structure designed to easily swap polling with WebSocket subscriptions
+
+---
+
+## Milestone 10: WebSocket Real-time Updates
+
+**Status:** `planned`  
+**Dependencies:** Milestones 1-9  
 **Estimated Effort:** 12-15 hours
 
 ### Overview
@@ -1345,7 +1632,7 @@ Implement WebSocket connections to enable real-time game updates, allowing playe
 
 ### Tasks
 
-#### 9.1 WebSocket Infrastructure (4-5 hours)
+#### 10.1 WebSocket Infrastructure (4-5 hours)
 
 - [ ] Upgrade WebSocket handler from blueprint to full implementation
 - [ ] Implement connection lifecycle management (connect, authenticate, disconnect)
@@ -1354,7 +1641,7 @@ Implement WebSocket connections to enable real-time game updates, allowing playe
 - [ ] Add connection state management (authenticated, subscribed to game)
 - [ ] Handle graceful shutdown and connection cleanup
 
-#### 9.2 Game Event System (3-4 hours)
+#### 10.2 Game Event System (3-4 hours)
 
 - [ ] Design event types: GameStateChanged, PlayerJoined, PlayerLeft, TurnChanged, CardDrawn, GameFinished, etc.
 - [ ] Create event serialization format (JSON with event type discrimination)
@@ -1364,7 +1651,7 @@ Implement WebSocket connections to enable real-time game updates, allowing playe
   - [ ] Broadcast to all spectators
 - [ ] Add event queuing for offline players (optional persistence)
 
-#### 9.3 Game State Synchronization (3-4 hours)
+#### 10.3 Game State Synchronization (3-4 hours)
 
 - [ ] Integrate WebSocket broadcasts into game service layer:
   - [ ] Trigger events on `draw_card()`
@@ -1376,7 +1663,7 @@ Implement WebSocket connections to enable real-time game updates, allowing playe
 - [ ] Add filtering logic (hide other players' cards, show only public info)
 - [ ] Implement spectator mode (read-only game observation)
 
-#### 9.4 Security and Performance (2-3 hours)
+#### 10.4 Security and Performance (2-3 hours)
 
 - [ ] Implement WebSocket authentication via JWT token in connection handshake
 - [ ] Add rate limiting for WebSocket messages
@@ -1384,6 +1671,15 @@ Implement WebSocket connections to enable real-time game updates, allowing playe
 - [ ] Add metrics for active connections, message throughput
 - [ ] Implement connection timeout and auto-disconnect
 - [ ] Add comprehensive logging for WebSocket events
+
+#### 10.5 Frontend WebSocket Integration (2-3 hours)
+
+- [ ] Replace polling mechanism in React frontend with WebSocket connections
+- [ ] Implement `useWebSocket` custom hook for connection management
+- [ ] Update game state synchronization to use WebSocket events
+- [ ] Add connection status indicator in UI (connected, connecting, disconnected)
+- [ ] Implement automatic reconnection with exponential backoff
+- [ ] Update `GamePage.tsx` to listen for real-time events
 
 ### Acceptance Criteria
 
@@ -1410,10 +1706,10 @@ Implement WebSocket connections to enable real-time game updates, allowing playe
 
 ---
 
-## Milestone 10: Monitoring & Observability
+## Milestone 11: Monitoring & Observability
 
 **Status:** `planned`  
-**Dependencies:** Milestones 1-8  
+**Dependencies:** Milestones 1-9  
 **Estimated Effort:** 10-12 hours
 
 ### Overview
@@ -1422,7 +1718,7 @@ Implement comprehensive monitoring and observability to track system health, per
 
 ### Tasks
 
-#### 10.1 Metrics Collection (4-5 hours)
+#### 11.1 Metrics Collection (4-5 hours)
 
 - [ ] Add `metrics` and `metrics-exporter-prometheus` dependencies
 - [ ] Implement application metrics:
@@ -1441,7 +1737,7 @@ Implement comprehensive monitoring and observability to track system health, per
   - [ ] Dealer auto-play frequency
 - [ ] Expose `/metrics` endpoint for Prometheus scraping
 
-#### 10.2 Distributed Tracing (3-4 hours)
+#### 11.2 Distributed Tracing (3-4 hours)
 
 - [ ] Integrate OpenTelemetry for distributed tracing
 - [ ] Add trace context propagation across service boundaries
@@ -1453,7 +1749,7 @@ Implement comprehensive monitoring and observability to track system health, per
 - [ ] Configure trace sampling and export to OTLP collector
 - [ ] Add trace IDs to structured logs for correlation
 
-#### 10.3 Enhanced Logging (2-3 hours)
+#### 11.3 Enhanced Logging (2-3 hours)
 
 - [ ] Implement structured logging with JSON output (for production)
 - [ ] Add contextual fields to logs:
@@ -1464,7 +1760,7 @@ Implement comprehensive monitoring and observability to track system health, per
 - [ ] Add error aggregation and deduplication
 - [ ] Implement log rotation and retention policies
 
-#### 10.4 Alerting and Dashboards (1-2 hours)
+#### 11.4 Alerting and Dashboards (1-2 hours)
 
 - [ ] Create Grafana dashboard templates:
   - [ ] System health dashboard (CPU, memory, request rate)
@@ -1662,7 +1958,7 @@ Expand documentation to include comprehensive API specification, developer guide
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 1.6.0 | 2026-01-16 | Team | Added Milestone 9 (WebSocket Real-time Updates) and Milestone 10 (Monitoring & Observability) for future implementation. Created Future Features section documenting additional enhancement opportunities. |
+| 1.6.0 | 2026-01-16 | Team | Added Milestone 9 (React Frontend Application) for frontend development in monorepo structure. Renumbered existing milestones: WebSocket (M9→M10), Monitoring (M10→M11). Updated Version History. |
 | 1.5.0 | 2026-01-15 | Team | Completed Milestone 8: Security hardening with Argon2id password hashing, RBAC, security headers, and comprehensive testing. All milestones (1-8) complete - Production ready! |
 | 1.4.2 | 2026-01-15 | Team | Updated M7 documentation: All acceptance criteria met, all endpoints functional, 167 tests passing |
 | 1.4.1 | 2026-01-15 | Team | Added API testing results, deployment guide, Step 1 completion (API Testing & Validation) |
