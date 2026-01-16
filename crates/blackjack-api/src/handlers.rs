@@ -240,6 +240,74 @@ pub async fn login(
     }))
 }
 
+/// Response payload for successful logout
+///
+/// Confirms that the logout action was acknowledged by the server.
+/// In this stateless JWT system, actual token invalidation occurs
+/// client-side by deleting the stored token.
+///
+/// # Example
+///
+/// ```json
+/// {
+///   "message": "Logged out successfully"
+/// }
+/// ```
+#[derive(Debug, Serialize)]
+pub struct LogoutResponse {
+    /// Confirmation message
+    pub message: String,
+}
+
+/// Logout the current user
+///
+/// This endpoint provides a formal logout action for the authenticated user.
+/// In a stateless JWT architecture, the server acknowledges the logout request,
+/// but actual token invalidation must occur client-side by deleting the stored token.
+///
+/// # Security Notes
+///
+/// - This endpoint requires a valid JWT token (authenticated user)
+/// - The token remains technically valid until expiration
+/// - Client must delete the token from storage after receiving this response
+/// - For production systems requiring server-side revocation, implement a token blacklist
+///
+/// # Future Enhancement
+///
+/// Consider implementing token revocation with:
+/// - Redis-based token blacklist with TTL matching token expiration
+/// - Database table tracking revoked tokens
+/// - JWT ID (jti) claim for unique token identification
+///
+/// # Example Request
+///
+/// ```bash
+/// curl -X POST http://localhost:8080/api/v1/auth/logout \
+///   -H "Authorization: Bearer <your-token>"
+/// ```
+///
+/// # Example Response
+///
+/// ```json
+/// {
+///   "message": "Logged out successfully"
+/// }
+/// ```
+#[tracing::instrument(skip(claims))]
+pub async fn logout(
+    Extension(claims): Extension<Claims>,
+) -> Result<Json<LogoutResponse>, ApiError> {
+    tracing::info!(
+        user_id = %claims.user_id,
+        email = %claims.email,
+        "User logged out"
+    );
+
+    Ok(Json(LogoutResponse {
+        message: "Logged out successfully".to_string(),
+    }))
+}
+
 /// Change password request payload
 #[derive(Debug, Deserialize)]
 pub struct ChangePasswordRequest {

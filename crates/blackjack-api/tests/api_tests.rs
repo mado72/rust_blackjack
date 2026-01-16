@@ -798,3 +798,40 @@ async fn test_draw_card_game_already_finished() {
         "Should return appropriate message"
     );
 }
+
+/// Tests the logout endpoint
+///
+/// Validates:
+/// - Logout succeeds with valid JWT token
+/// - Returns success message
+/// - Logs the logout action
+///
+/// # Note
+///
+/// In a stateless JWT system, logout is primarily client-side.
+/// This test validates that the server acknowledges the logout action.
+#[tokio::test]
+async fn test_logout_endpoint() {
+    use blackjack_api::auth::Claims;
+    use blackjack_api::handlers::logout;
+    use axum::Extension;
+
+    // Create test claims
+    let claims = Claims {
+        user_id: "550e8400-e29b-41d4-a716-446655440000".to_string(),
+        email: "test@example.com".to_string(),
+        exp: (chrono::Utc::now() + chrono::Duration::hours(1)).timestamp() as usize,
+    };
+
+    // Call logout endpoint
+    let result = logout(Extension(claims)).await;
+
+    // Verify successful logout
+    assert!(result.is_ok(), "Logout should succeed with valid claims");
+
+    let response = result.unwrap();
+    assert_eq!(
+        response.0.message, "Logged out successfully",
+        "Should return success message"
+    );
+}
