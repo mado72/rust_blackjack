@@ -1083,9 +1083,9 @@ Implement robust security measures including proper password hashing with modern
     - [x] `Strict-Transport-Security: max-age=31536000; includeSubDomains` ✅
     - [x] `Content-Security-Policy: default-src 'self'` ✅
 
-#### Configuration Updates
+#### Configuration Updates (Optional - Future Enhancement)
 
-- [ ] Add to `config.toml`:
+- [ ] Add to `config.toml`: (Not implemented - hardcoded constants used instead)
   ```toml
   [security]
   password_min_length = 8
@@ -1102,12 +1102,12 @@ Implement robust security measures including proper password hashing with modern
   parallelism = 1
   ```
 
-- [ ] Add environment variables:
+- [ ] Add environment variables: (Not implemented - using hardcoded MIN_PASSWORD_LENGTH = 8)
   - [ ] `BLACKJACK_SECURITY_PASSWORD_MIN_LENGTH`
   - [ ] `BLACKJACK_SECURITY_MAX_LOGIN_ATTEMPTS`
   - [ ] `BLACKJACK_SECURITY_LOCKOUT_DURATION_MINUTES`
 
-#### Database Migrations
+#### Database Migrations (N/A - In-Memory Implementation)
 
 - [ ] **Update users table**:
   ```sql
@@ -1159,41 +1159,41 @@ Implement robust security measures including proper password hashing with modern
 
 #### Testing
 
-- [ ] **Password Security Tests**
-  - [ ] Test password hashing produces different hashes for same password (salt randomization)
-  - [ ] Test password verification succeeds for correct password
-  - [ ] Test password verification fails for incorrect password
-  - [ ] Test password verification is constant-time (timing attack resistance)
-  - [ ] Test weak password validation (too short, no special chars, etc.)
-  - [ ] Test password hash format is Argon2id PHC string format
+- [x] **Password Security Tests** ✅ **COMPLETE** (8 tests in password.rs)
+  - [x] Test password hashing produces different hashes for same password (salt randomization) ✅
+  - [x] Test password verification succeeds for correct password ✅
+  - [x] Test password verification fails for incorrect password ✅
+  - [x] Test password verification is constant-time (timing attack resistance) ✅
+  - [x] Test weak password validation (too short, no special chars, etc.) ✅
+  - [x] Test password hash format is Argon2id PHC string format ✅
 
-- [ ] **Access Control Tests**
-  - [ ] Test creator can invite players
-  - [ ] Test non-creator cannot invite players
-  - [ ] Test creator can kick players
-  - [ ] Test player cannot kick other players
-  - [ ] Test creator cannot kick themselves
-  - [ ] Test only creator can manually finish game
-  - [ ] Test participant role retrieval
-  - [ ] Test permission checking logic
+- [x] **Access Control Tests** ✅ **COMPLETE** (11 security tests in service_tests.rs)
+  - [x] Test creator can invite players ✅
+  - [x] Test non-creator cannot invite players ✅
+  - [x] Test creator can kick players ✅
+  - [x] Test player cannot kick other players ✅
+  - [x] Test creator cannot kick themselves ✅
+  - [x] Test only creator can manually finish game ✅
+  - [x] Test participant role retrieval ✅
+  - [x] Test permission checking logic ✅
 
-- [ ] **Authentication Tests**
-  - [ ] Test successful registration with valid password
-  - [ ] Test registration fails with weak password
-  - [ ] Test registration fails with invalid email
-  - [ ] Test login with correct credentials
-  - [ ] Test login fails with incorrect password
-  - [ ] Test account lockout after 5 failed attempts
-  - [ ] Test lockout expires after configured duration
-  - [ ] Test password change with correct old password
-  - [ ] Test password change fails with incorrect old password
+- [x] **Authentication Tests** ✅ **PARTIALLY COMPLETE** (account lockout not implemented)
+  - [x] Test successful registration with valid password ✅
+  - [x] Test registration fails with weak password ✅
+  - [x] Test registration fails with invalid email ✅
+  - [x] Test login with correct credentials ✅
+  - [x] Test login fails with incorrect password ✅
+  - [ ] Test account lockout after 5 failed attempts (NOT IMPLEMENTED - requires SecurityService)
+  - [ ] Test lockout expires after configured duration (NOT IMPLEMENTED - requires SecurityService)
+  - [x] Test password change with correct old password ✅
+  - [x] Test password change fails with incorrect old password ✅
 
-- [ ] **API Security Tests**
-  - [ ] Test unauthorized user cannot access game endpoints
-  - [ ] Test player cannot perform creator-only actions
-  - [ ] Test security headers are present in all responses
-  - [ ] Test rate limiting on login endpoint
-  - [ ] Test audit log records security events
+- [x] **API Security Tests** ✅ **PARTIALLY COMPLETE** (audit logging not implemented)
+  - [x] Test unauthorized user cannot access game endpoints ✅
+  - [x] Test player cannot perform creator-only actions ✅
+  - [x] Test security headers are present in all responses ✅
+  - [x] Test rate limiting on login endpoint ✅
+  - [ ] Test audit log records security events (NOT IMPLEMENTED - requires SecurityService and audit_log table)
 
 #### Documentation
 
