@@ -100,7 +100,7 @@ All tools include:
 
 - [Main Documentation](../../README.md)
 - [Product Requirements Document](../PRD.md)
-- [API Source Code](../../crates/blackjack-api/)
+- [API Source Code](../../api/crates/blackjack-api/)
 
 ## 📊 Tool Selection Matrix
 

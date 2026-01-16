@@ -78,7 +78,7 @@ openssl rand -base64 32
 
 ### Configuration File (config.toml)
 
-The API uses `crates/blackjack-api/config.toml` as the default configuration. Environment variables override file settings.
+The API uses `api/crates/blackjack-api/config.toml` as the default configuration. Environment variables override file settings.
 
 **Production configuration template:**
 
@@ -173,7 +173,7 @@ ls -lh target/release/blackjack-api
 scp target/release/blackjack-api user@server:/opt/blackjack/
 
 # Copy configuration
-scp crates/blackjack-api/config.toml user@server:/opt/blackjack/
+scp api/crates/blackjack-api/config.toml user@server:/opt/blackjack/
 
 # SSH to server and set permissions
 ssh user@server

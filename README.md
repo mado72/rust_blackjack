@@ -67,35 +67,32 @@ This project uses a **workspace-based architecture** with clear separation of co
 
 ```
 rust_blackjack/
-├── Cargo.toml                    # Workspace manifest
-├── Dockerfile                    # Multi-stage Docker build
-├── .dockerignore
-├── .github/
-│   └── workflows/
-│       └── ci.yml               # CI/CD pipeline
-├── crates/
-│   ├── blackjack-core/          # Domain logic (Game, Card, Player)
-│   │   ├── src/lib.rs
-│   │   └── tests/integration_tests.rs
-│   ├── blackjack-service/       # Business logic layer
-│   │   ├── src/lib.rs
-│   │   ├── migrations/          # Future SQLite migrations
-│   │   └── tests/service_tests.rs
-│   ├── blackjack-api/           # REST API (Axum)
-│   │   ├── src/
-│   │   │   ├── main.rs          # Server entry point
-│   │   │   ├── lib.rs
-│   │   │   ├── auth.rs          # JWT authentication
-│   │   │   ├── config.rs        # Configuration management
-│   │   │   ├── error.rs         # Standardized errors
-│   │   │   ├── handlers.rs      # HTTP request handlers
-│   │   │   ├── middleware.rs    # Auth, rate limit, deprecation
-│   │   │   ├── rate_limiter.rs  # Sliding window rate limiter
-│   │   │   └── websocket.rs     # WebSocket blueprint (future)
-│   │   ├── config.toml          # Default configuration
-│   │   └── tests/api_tests.rs
-│   └── blackjack-cli/           # Original CLI version (preserved)
-│       └── src/main.rs
+├── api/                         # Backend API folder
+│   ├── Cargo.toml               # Workspace manifest
+│   ├── Dockerfile               # Multi-stage Docker build
+│   └── crates/
+│       ├── blackjack-core/      # Domain logic (Game, Card, Player)
+│       │   ├── src/lib.rs
+│       │   └── tests/integration_tests.rs
+│       ├── blackjack-service/   # Business logic layer
+│       │   ├── src/lib.rs
+│       │   ├── migrations/      # Future SQLite migrations
+│       │   └── tests/service_tests.rs
+│       ├── blackjack-api/       # REST API (Axum)
+│       │   ├── src/
+│       │   │   ├── main.rs      # Server entry point
+│       │   │   ├── lib.rs
+│       │   │   ├── auth.rs      # JWT authentication
+│       │   │   ├── config.rs    # Configuration management
+│       │   │   ├── error.rs     # Standardized errors
+│       │   │   ├── handlers.rs  # HTTP request handlers
+│       │   │   ├── middleware.rs # Auth, rate limit, deprecation
+│       │   │   ├── rate_limiter.rs # Sliding window rate limiter
+│       │   │   └── websocket.rs # WebSocket blueprint (future)
+│       │   ├── config.toml      # Default configuration
+│       │   └── tests/api_tests.rs
+│       └── blackjack-cli/       # Original CLI version (preserved)
+│           └── src/main.rs
 ├── docs/
 │   ├── PRD.md                   # Product Requirements Document
 │   └── postman/                 # API testing resources
@@ -108,6 +105,10 @@ rust_blackjack/
 │       ├── API_TESTING_INDEX.md # Complete testing index
 │       ├── api_tests.http       # VS Code REST Client file
 │       └── test_api.ps1         # PowerShell test script
+├── frontend/                    # Frontend application (future)
+├── .github/
+│   └── workflows/
+│       └── ci.yml               # CI/CD pipeline
 └── README.md                    # This file
 ```
 
@@ -241,7 +242,7 @@ All testing tools follow this same flow with automatic variable management!
 
 ## Configuration
 
-Configuration is loaded from `crates/blackjack-api/config.toml` and can be overridden with environment variables prefixed with `BLACKJACK_`.
+Configuration is loaded from `api/crates/blackjack-api/config.toml` and can be overridden with environment variables prefixed with `BLACKJACK_`.
 
 ### config.toml
 
@@ -1288,7 +1289,7 @@ game.check_auto_finish()      // Auto-finish if all done
 
 ### Configuration
 
-Add to `crates/blackjack-api/config.toml`:
+Add to `api/crates/blackjack-api/config.toml`:
 
 ```toml
 [invitations]
@@ -1559,7 +1560,7 @@ The following features are planned but not yet implemented:
 
 ### WebSocket Real-Time Notifications
 
-Blueprint is available in `crates/blackjack-api/src/websocket.rs`:
+Blueprint is available in `api/crates/blackjack-api/src/websocket.rs`:
 
 - Real-time game event broadcasting
 - JWT authentication on connection
@@ -1567,7 +1568,7 @@ Blueprint is available in `crates/blackjack-api/src/websocket.rs`:
 
 ### SQLite Persistence
 
-Migration files are prepared in `crates/blackjack-service/migrations/`:
+Migration files are prepared in `api/crates/blackjack-service/migrations/`:
 
 - Persistent game state across restarts
 - Player history and statistics
@@ -1676,17 +1677,20 @@ Finished.
 This project is being transformed into a production-ready REST API backend system. See the complete [Product Requirements Document (PRD)](docs/PRD.md) for detailed information about the planned evolution.
 
 ### Planned Architecture
-The system will be restructured into a Cargo workspace with multiple crates:
+The system is structured as a full-stack application with separate backend and frontend:
 
 ```
 rust_blackjack/
-├── crates/
-│   ├── blackjack-core/      # Core game logic and domain models
-│   ├── blackjack-service/   # Business logic and state management
-│   ├── blackjack-api/       # REST API and HTTP handlers
-│   └── blackjack-cli/       # Original CLI version (preserved)
+├── api/                     # Backend API folder
+│   ├── Cargo.toml          # Workspace manifest
+│   └── crates/
+│       ├── blackjack-core/      # Core game logic and domain models
+│       ├── blackjack-service/   # Business logic and state management
+│       ├── blackjack-api/       # REST API and HTTP handlers
+│       └── blackjack-cli/       # Original CLI version (preserved)
+├── frontend/               # Frontend application (future)
 ├── docs/
-│   └── PRD.md              # Detailed implementation plan
+│   └── PRD.md             # Detailed implementation plan
 └── README.md
 ```
 

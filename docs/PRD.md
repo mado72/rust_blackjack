@@ -20,12 +20,12 @@ This document details the transformation of the CLI blackjack game into a produc
 
 ### Tasks
 
-- [x] Create workspace root `Cargo.toml` with members: `["crates/blackjack-core", "crates/blackjack-service", "crates/blackjack-api", "crates/blackjack-cli"]`
-- [x] Create `crates/blackjack-core/Cargo.toml` with dependencies: rand 0.9.2, uuid v4, serde derive
-- [x] Create `crates/blackjack-service/Cargo.toml` with dependencies: thiserror 2, tracing 0.1
-- [x] Create `crates/blackjack-api/Cargo.toml` with dependencies: axum 0.7, tokio full, serde derive, serde_json, jsonwebtoken 9, tower-http cors 0.6, tower 0.5, tracing 0.1, tracing-subscriber 0.3 env-filter, config 0.14, dotenv 0.15
+- [x] Create workspace root `Cargo.toml` with members: `["crates/blackjack-core", "crates/blackjack-service", "crates/blackjack-api", "crates/blackjack-cli"]` (now in `api/` folder)
+- [x] Create `api/crates/blackjack-core/Cargo.toml` with dependencies: rand 0.9.2, uuid v4, serde derive
+- [x] Create `api/crates/blackjack-service/Cargo.toml` with dependencies: thiserror 2, tracing 0.1
+- [x] Create `api/crates/blackjack-api/Cargo.toml` with dependencies: axum 0.7, tokio full, serde derive, serde_json, jsonwebtoken 9, tower-http cors 0.6, tower 0.5, tracing 0.1, tracing-subscriber 0.3 env-filter, config 0.14, dotenv 0.15
 - [x] Add commented future dependencies: `# Future: sqlx, metrics, metrics-exporter-prometheus, notify, validator`
-- [x] Move `src/main.rs` to `crates/blackjack-cli/src/main.rs` (preserve original CLI version)
+- [x] Move `src/main.rs` to `api/crates/blackjack-cli/src/main.rs` (preserve original CLI version)
 - [x] Create `.github/workflows/ci.yml` with jobs:
   - [x] `test`: cargo test --workspace
   - [x] `lint`: cargo clippy -- -D warnings
@@ -108,7 +108,7 @@ This document details the transformation of the CLI blackjack game into a produc
   - [x] Load from env vars with defaults (1-10)
 - [x] Create `GameService` struct:
   - [x] Fields: `games: Arc<Mutex<HashMap<Uuid, Game>>>, config: ServiceConfig`
-- [x] Create `crates/blackjack-service/migrations/` directory
+- [x] Create `api/crates/blackjack-service/migrations/` directory
 - [x] Create `20250101000000_initial_schema.sql` with commented SQL:
   ```sql
   -- CREATE TABLE games (
@@ -179,7 +179,7 @@ This document details the transformation of the CLI blackjack game into a produc
 
 ### Tasks
 
-- [x] Create `crates/blackjack-api/config.toml`:
+- [x] Create `api/crates/blackjack-api/config.toml`:
   ```toml
   [server]
   host = "127.0.0.1"
@@ -264,7 +264,7 @@ This document details the transformation of the CLI blackjack game into a produc
 
 ### Tasks
 
-- [x] Create `crates/blackjack-api/src/websocket.rs` with commented blueprint
+- [x] Create `api/crates/blackjack-api/src/websocket.rs` with commented blueprint
 - [x] Implement `GET /health`
 - [x] Implement `GET /health/ready`
 - [x] Implement `POST /api/v1/games`
@@ -299,7 +299,7 @@ This document details the transformation of the CLI blackjack game into a produc
 ### Tasks
 
 #### Core Tests
-- [x] Create `crates/blackjack-core/tests/integration_tests.rs` (19 tests)
+- [x] Create `api/crates/blackjack-core/tests/integration_tests.rs` (19 tests)
 - [x] Test deck has exactly 52 cards
 - [x] Test 4 cards of each type (A, 2-10, J, Q, K)
 - [x] Test deck exhaustion returns `GameError::DeckEmpty`
@@ -310,7 +310,7 @@ This document details the transformation of the CLI blackjack game into a produc
 - [x] Test `GameResult` with single winner, ties, all-bust scenarios
 
 #### Service Tests
-- [x] Create `crates/blackjack-service/tests/service_tests.rs` (12 tests)
+- [x] Create `api/crates/blackjack-service/tests/service_tests.rs` (12 tests)
 - [x] Test concurrent access with Arc/Mutex
 - [x] Test config validation (min_players, max_players)
 - [x] Test `GameService::create_game()` with valid/invalid player counts
@@ -321,7 +321,7 @@ This document details the transformation of the CLI blackjack game into a produc
 - [x] Test `GameError` variants and error messages
 
 #### API Tests
-- [x] Create `crates/blackjack-api/tests/api_tests.rs` (13 tests)
+- [x] Create `api/crates/blackjack-api/tests/api_tests.rs` (13 tests)
 - [x] Test rate limiting enforcement
 - [x] Test config loading from file and env vars
 - [x] Test `ApiError` format with details field

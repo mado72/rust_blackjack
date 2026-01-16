@@ -194,11 +194,11 @@ curl -X PUT http://localhost:8080/api/v1/games/{game_id}/ace \
 
 | Component | Location |
 |-----------|----------|
-| Handlers | `crates/blackjack-api/src/handlers.rs` (lines 1310-1655) |
-| Router | `crates/blackjack-api/src/main.rs` (lines 119-127) |
-| Service | `crates/blackjack-service/src/lib.rs` (lines 440-580) |
-| Core | `crates/blackjack-core/src/lib.rs` |
-| Tests | `crates/blackjack-api/tests/api_tests.rs` |
+| Handlers | `api/crates/blackjack-api/src/handlers.rs` (lines 1310-1655) |
+| Router | `api/crates/blackjack-api/src/main.rs` (lines 119-127) |
+| Service | `api/crates/blackjack-service/src/lib.rs` (lines 440-580) |
+| Core | `api/crates/blackjack-core/src/lib.rs` |
+| Tests | `api/crates/blackjack-api/tests/api_tests.rs` |
 | Invitation Tests | `docs/postman/invitation_flow.http` (PHASE 2A) |
 
 ---
