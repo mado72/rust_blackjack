@@ -1,4 +1,9 @@
 */target
+**/target
+
+# Rust build artifacts
+Cargo.lock
+*.pdb
 
 # Environment files with secrets
 .env
@@ -10,3 +15,13 @@
 
 # Temporary documentation files
 .tmp-docs
+
+# Frontend build artifacts
+frontend/node_modules
+frontend/build
+frontend/dist
+frontend/.next
+
+# OS files
+.DS_Store
+Thumbs.db

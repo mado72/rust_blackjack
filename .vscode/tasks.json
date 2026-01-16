@@ -1,0 +1,165 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Backend (Debug)",
+            "type": "cargo",
+            "command": "build",
+            "args": [
+                "--workspace",
+                "--manifest-path=api/Cargo.toml"
+            ],
+            "group": "build",
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "label": "Build Backend (Release)",
+            "type": "cargo",
+            "command": "build",
+            "args": [
+                "--workspace",
+                "--release",
+                "--manifest-path=api/Cargo.toml"
+            ],
+            "group": "build",
+            "problemMatcher": [
+                "$rustc"
+            ]
+        },
+        {
+            "label": "Test Backend",
+            "type": "cargo",
+            "command": "test",
+            "args": [
+                "--workspace",
+                "--manifest-path=api/Cargo.toml"
+            ],
+            "group": "test",
+            "problemMatcher": [
+                "$rustc"
+            ]
+        },
+        {
+            "label": "Run Backend API",
+            "type": "cargo",
+            "command": "run",
+            "args": [
+                "--bin=blackjack-api",
+                "--manifest-path=api/Cargo.toml"
+            ],
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^(.*)$",
+                    "file": 1
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "^Compiling",
+                    "endsPattern": "Listening on"
+                }
+            }
+        },
+        {
+            "label": "Lint Backend (Clippy)",
+            "type": "cargo",
+            "command": "clippy",
+            "args": [
+                "--workspace",
+                "--manifest-path=api/Cargo.toml",
+                "--",
+                "-D",
+                "warnings"
+            ],
+            "problemMatcher": [
+                "$rustc"
+            ]
+        },
+        {
+            "label": "Format Backend",
+            "type": "cargo",
+            "command": "fmt",
+            "args": [
+                "--all",
+                "--manifest-path=api/Cargo.toml"
+            ]
+        },
+        {
+            "label": "Install Frontend Dependencies",
+            "type": "shell",
+            "command": "npm",
+            "args": [
+                "install"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/frontend"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Start Frontend Dev Server",
+            "type": "shell",
+            "command": "npm",
+            "args": [
+                "start"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/frontend"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": {
+                    "regexp": "^(.*)$",
+                    "file": 1
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "Compiling",
+                    "endsPattern": "Compiled successfully|Failed to compile"
+                }
+            }
+        },
+        {
+            "label": "Build Frontend",
+            "type": "shell",
+            "command": "npm",
+            "args": [
+                "run",
+                "build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/frontend"
+            },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Test Frontend",
+            "type": "shell",
+            "command": "npm",
+            "args": [
+                "test"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/frontend"
+            },
+            "group": "test",
+            "problemMatcher": []
+        },
+        {
+            "label": "Start Full Stack",
+            "dependsOn": [
+                "Run Backend API",
+                "Start Frontend Dev Server"
+            ],
+            "dependsOrder": "parallel",
+            "problemMatcher": []
+        }
+    ]
+}

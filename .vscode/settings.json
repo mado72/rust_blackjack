@@ -1,0 +1,32 @@
+{
+    // Rust Analyzer settings for API workspace
+    "rust-analyzer.linkedProjects": [
+        "api/Cargo.toml"
+    ],
+    "rust-analyzer.cargo.target": null,
+    
+    // Search settings
+    "search.exclude": {
+        "**/target": true,
+        "**/node_modules": true,
+        "**/.git": true,
+        "**/dist": true,
+        "**/build": true
+    },
+    
+    // Files settings
+    "files.exclude": {
+        "**/.git": true,
+        "**/target": false,
+        "**/node_modules": true
+    },
+    
+    // Workspace recommendations
+    "extensions.recommendations": [
+        "rust-lang.rust-analyzer",
+        "vadimcn.vscode-lldb",
+        "tamasfe.even-better-toml",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+    ]
+}
